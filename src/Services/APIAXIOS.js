@@ -1,0 +1,99 @@
+import axios from "axios";
+//Error codes for error messages in the form
+
+
+export async function axiosCall(Url, Type, Headers, Data, isLoading = false) {
+    const loadingElement = document.getElementById('loading-indicator');
+    if (isLoading) {
+        loadingElement.style.display = 'block';
+    }
+    let Response_Result = '';
+    let errors = null;
+    try {
+        if (localStorage.loginState) {
+            const t = localStorage.token;
+            Headers.Authorization = "Bearer " + t;
+        }
+        let res = await axios({
+            method: Type,
+            url: Url,
+            headers: Headers,
+            data: Data
+        });
+        Response_Result = res;
+        console.log(res);
+
+    }
+    catch (err) {
+        console.log('axiosCall', err);
+        if (err?.code === "ERR_NETWORK") {
+            setTimeout(() => { window.location.href = '/'; }, 100);
+
+        }
+        else if (err.response?.status === 401 && err.response?.statusText === "Unauthorized") {
+            setTimeout(() => { window.location.href = '/'; }, 100);
+        }
+        errors = err;
+    }
+    if (isLoading) {
+        loadingElement.style.display = 'none';
+    }
+    return {
+        errors: errors,
+        result: Response_Result
+    };
+}
+
+export async function downloadFile(Url, hooks, isLoading = false) {
+    const loadingElement = document.getElementById('loading-indicator');
+    if (isLoading) {
+        loadingElement.style.display = 'block';
+    }
+    let Response_Result = '';
+    let errors = null;
+    try {
+        if (localStorage.loginState) {
+            const t = JSON.parse(localStorage.loginState);
+            Headers.Authorization = "Token " + t.auth.token;
+        }
+        const response = await axios({
+            url: Url, // replace with your API endpoint
+            method: 'get',
+            responseType: 'blob', // important for handling file downloads
+        });
+        const parsedUrl = new URL(Url);
+
+        // Extract the filename from the query parameters
+        const filename = parsedUrl.searchParams.get('fileName');
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+
+        // Clean up
+        link.parentNode.removeChild(link);
+
+        Response_Result = response;
+    }
+    catch (err) {
+        console.log('downloadFile', err);
+
+        if (err?.code == "ERR_NETWORK") {
+            setTimeout(() => { window.location.href = '/login'; }, 100);
+        }
+        else if (err.response?.status == 401 && err.response?.statusText == "Unauthorized") {
+            setTimeout(() => { window.location.href = '/login'; }, 100);
+        }
+        console.error('Error downloading the file:', err);
+        errors = err;
+    }
+    if (isLoading) {
+        loadingElement.style.display = 'none';
+    }
+    return {
+        errors: errors,
+        result: Response_Result
+    };
+}
