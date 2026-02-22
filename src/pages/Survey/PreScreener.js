@@ -9,7 +9,7 @@ import Alert from "@mui/material/Alert";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { AddSurveyResponse, CreateQuiz, CreateSurvey, GetOptionsSurvey, GetSurvey, GetSurveyPreScreening } from "../../api/survey";
+import { AddSurveyResponse, CreateQuiz, CreateSurvey, DeleteSurveyPreScreening, GetOptionsSurvey, GetSurvey, GetSurveyPreScreening } from "../../api/survey";
 import { Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputLabel, MenuItem, Select, TextField, Typography } from "@mui/material";
 import { Controller, useForm } from "react-hook-form";
 
@@ -73,6 +73,29 @@ const PreScreener = () => {
         setSnackbarSeverity(severity);
         setSnackbarOpen(true);
     };
+    const handleDeleteQuestion = async (questionId) => {
+    if (!window.confirm("Are you sure you want to delete this question?")) {
+        return;
+    }
+
+    try {
+        const response = await DeleteSurveyPreScreening(questionId);
+
+        if (response.errors == null) {
+            showSnackbar("Question deleted successfully", "success");
+
+            // Refresh list
+            const questions = await GetSurveyPreScreening(sid);
+            setRowData(questions.result.data);
+        } else {
+            showSnackbar("Failed to delete question", "error");
+        }
+    } catch (error) {
+        console.error("Delete error:", error);
+        showSnackbar("An unexpected error occurred", "error");
+    }
+};
+
     const onSubmit = async (data) => {
             try {
               debugger;
@@ -100,7 +123,9 @@ const PreScreener = () => {
               if (response.errors == null) {
                 // Show success message
                 showSnackbar("Record added successfully", "success");
-                
+                const questions = await GetSurveyPreScreening(sid);
+                setRowData(questions.result.data);
+                console.log(rowData);
                 // Reset the form to default values
                 reset();
               } else {
@@ -236,9 +261,15 @@ const PreScreener = () => {
                             ))}
                         </ul>
                     </Typography>
-                    <Button variant="outlined" color="error" size="small">
+                    <Button
+                        variant="outlined"
+                        color="error"
+                        size="small"
+                        onClick={() => handleDeleteQuestion(item.id)}
+                    >
                         Delete
                     </Button>
+
                 </div>
             </Grid>
         ))

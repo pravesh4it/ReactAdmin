@@ -1,432 +1,362 @@
 import { useEffect, useState } from "react";
-import { emphasize, styled } from '@mui/material/styles';
 import { useForm, Controller } from "react-hook-form";
-import Chip from '@mui/material/Chip';
-import Button from '@mui/material/Button';
-import Dialog from '@mui/material/Dialog';
-import DialogActions from '@mui/material/DialogActions';
-import DialogContent from '@mui/material/DialogContent';
-import DialogContentText from '@mui/material/DialogContentText';
-import DialogTitle from '@mui/material/DialogTitle';
-import TextField from '@mui/material/TextField';
-import Snackbar from '@mui/material/Snackbar';
-import Alert from '@mui/material/Alert';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteIcon from '@mui/icons-material/Delete';
-import IconButton from '@mui/material/IconButton';
-import { AgGridReact } from 'ag-grid-react';
-import 'ag-grid-community/styles/ag-grid.css';
-import 'ag-grid-community/styles/ag-theme-quartz.css';
-import { GetUsers, AddUser, UpdateUser, DeleteUser, GetOptions } from "../../api/users";
-import { FormControl, FormHelperText, Hidden, InputLabel, MenuItem, Select } from "@mui/material";
-import PhoneInput from 'react-phone-input-2';
-import 'react-phone-input-2/lib/style.css'; // Import styles for the phone input
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  TextField,
+  Snackbar,
+  Alert,
+  IconButton,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Select
+} from "@mui/material";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-quartz.css";
+import PhoneInput from "react-phone-input-2";
+import "react-phone-input-2/lib/style.css";
 
+import {
+  GetUsers,
+  AddUser,
+  UpdateUser,
+  DeleteUser,
+  GetOptions
+} from "../../api/users";
 
 const ManageUsers = () => {
-    const [rowData, setRowData] = useState([]);
-    const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
-    const [openEditDialog, setOpenEditDialog] = useState(false);
-    const [selectedUser, setSelectedUser] = useState(null);
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState("");
-    const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-    const [searchText, setSearchText] = useState("");
-    const [paginationPageSize] = useState(10);
-    const [designations, setDesignations] = useState([]);
-    const [roles, setRoles] = useState([]);
+  const [rowData, setRowData] = useState([]);
+  const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
 
-    const { control, handleSubmit, reset, formState: { errors } } = useForm({
-        defaultValues: {
-            firstName: "",
-            lastName: "",
-            designationId: "",
-            roleId:"",
-            contactNo: "",
-            email: ""
-        }
-    });
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState("success");
 
-    useEffect(() => {
-        async function fetchData() {
-            try {
-                const response = await GetUsers();
-                setRowData(response.result.data);
-                const optionsResponse = await GetOptions();
-                setDesignations(optionsResponse.result.data.designations);
-                setRoles(optionsResponse.result.data.roles);
-            } catch (error) {
-                console.error(error);
-                showSnackbar("Failed to load Users", "error");
-            }
-        }
-        fetchData();
-    }, []);
+  const [searchText, setSearchText] = useState("");
+  const [paginationPageSize] = useState(10);
+  const [designations, setDesignations] = useState([]);
+  const [roles, setRoles] = useState([]);
 
-    const handleSearch = (e) => {
-        setSearchText(e.target.value);
-    };
-
-    const handleDelete = (user) => {
-        setSelectedUser(user);
-        setOpenDeleteDialog(true);
-    };
-
-    const handleEdit = (user) => {
-    setSelectedUser(user);
-    if (user) {
-        reset(user); // Edit Mode: populate form with existing data
-    } else {
-        // Add Mode: reset with empty/default values
-        reset({
-            firstName: "",
-            lastName: "",
-            designationId: "",
-            roleId: "",
-            contactNo: "",
-            email: ""
-        });
+  const { control, handleSubmit, reset, formState: { errors } } = useForm({
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      designationId: "",
+      roleId: "",
+      contactNo: "",
+      email: ""
     }
-    setOpenEditDialog(true);
-};
-    const handleConfirmDelete = async () => {
-        try {
-            await DeleteUser(selectedUser.id);
-            setRowData(rowData.filter((item) => item.id !== selectedUser.id));
-            showSnackbar("User deleted successfully", "success");
-        } catch (error) {
-            console.error(error);
-            showSnackbar("Failed to delete user", "error");
-        } finally {
-            setOpenDeleteDialog(false);
-            setSelectedUser(null);
-        }
+  });
+
+  // 🔄 LOAD USERS (REUSABLE)
+  const loadUsers = async () => {
+    try {
+      const response = await GetUsers();
+      setRowData(response.result.data);
+    } catch (error) {
+      console.error(error);
+      showSnackbar("Failed to load users", "error");
+    }
+  };
+
+  // INITIAL LOAD
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        await loadUsers();
+
+        const optionsResponse = await GetOptions();
+        setDesignations(optionsResponse.result.data.designations);
+        setRoles(optionsResponse.result.data.roles);
+      } catch (error) {
+        console.error(error);
+        showSnackbar("Failed to load data", "error");
+      }
     };
 
-    const handleDialogClose = () => {
-        setOpenDeleteDialog(false);
-        setOpenEditDialog(false);
-        setSelectedUser(null);
-        reset();
-    };
+    fetchData();
+  }, []);
 
-    const handleSaveUser = async (data) => {
-        try {
-            if (selectedUser) {
-                const updatedUser = { ...data, id: selectedUser.id };
-                const response = await UpdateUser(selectedUser.id, updatedUser);
-                if (!response.errors) {
-                    setRowData((prev) =>
-                        prev.map((item) => (item.id === selectedUser.id ? { ...item, ...data } : item))
-                    );
-                    showSnackbar("User updated successfully", "success");
-                } else {
-                    showSnackbar("Failed to save user", "error");
-                }
-            } else {
-                const newUser = { ...data };
-                const userRole = roles.find((role) => role.id === newUser.roleId);
-                debugger
-                const jsondata ={
-                    "username": newUser.email,
-                    "role": userRole.name,
-                    "firstName": newUser.firstName,
-                    "lastName": newUser.lastName,
-                    "designationId": newUser.designationId,
-                    "contactNo": newUser.contactNo
-                  }
+  const showSnackbar = (message, severity) => {
+    setSnackbarMessage(message);
+    setSnackbarSeverity(severity);
+    setSnackbarOpen(true);
+  };
 
-                const response = await AddUser(jsondata);
-                if (!response.errors) {
-                    setRowData((prev) => [...prev, response.result.data]);
-                    showSnackbar("User added successfully", "success");
-                } else {
-                    showSnackbar("Failed to save user", "error");
-                }
-            }
-        } catch (error) {
-            console.error(error);
-            showSnackbar("An error occurred while saving", "error");
-        } finally {
-            setOpenEditDialog(false);
-            setSelectedUser(null);
-            reset();
-        }
-    };
+  const handleSnackbarClose = () => setSnackbarOpen(false);
 
-    const showSnackbar = (message, severity) => {
-        setSnackbarMessage(message);
-        setSnackbarSeverity(severity);
-        setSnackbarOpen(true);
-    };
+  const handleSearch = (e) => setSearchText(e.target.value);
 
-    const handleSnackbarClose = () => {
-        setSnackbarOpen(false);
-    };
-
-
-    const defaultColDef = {
-        resizable: true,
-        sortable: true,
-        minWidth: 80, // default minimum, override per-column when needed
-    };
-
-    const columnDefs = [
-    { headerName: 'ID', field: 'id', hide: true }, // hidden - no flex needed
-    { headerName: 'First Name', field: 'firstName', flex: 1, minWidth: 120 },
-    { headerName: 'Last Name', field: 'lastName', flex: 1, minWidth: 120 },
-    { headerName: 'Designation', field: 'designation', flex: 2, minWidth: 160 },
-    { headerName: 'DesignationId', field: 'designationId', hide: true }, // hidden
-    { headerName: 'Role', field: 'role', flex: 1.5, minWidth: 140 },
-    { headerName: 'RoleId', field: 'roleId', hide: true }, // hidden
-    { headerName: 'Contact No', field: 'contactNo', flex: 1, minWidth: 120 },
-    { headerName: 'Email', field: 'email', flex: 2, minWidth: 160 },
-
-    {
-        headerName: 'Actions',
-        field: 'actions',
-        // small fixed minWidth so buttons don't collapse; flex gives it some share
-        flex: 0.8,
-        minWidth: 140,
-        cellRenderer: (params) => (
-        <>
-            <IconButton onClick={() => handleEdit(params.data)}>
-            <EditIcon color="primary" />
-            </IconButton>
-            <IconButton onClick={() => handleDelete(params.data)}>
-            <DeleteIcon color="error" />
-            </IconButton>
-        </>
-        ),
-    },
-    ];
-
-
-    return (
-        <>
-            <div className="right-content w-100">
-                <div className="card shadow border-0 w-100 flex-row p-4">
-                    <h5 className="mb-0">Manage Users</h5>
-                    
-                </div>
-
-                <div className="card shadow border-0 p-3">
-                    <div style={{ display: 'flex', justifyContent: 'right', paddingBottom: '5px' }}>
-                        <TextField
-                            variant="outlined"
-                            placeholder="Search..."
-                            value={searchText}
-                            size="small"
-                            onChange={handleSearch}
-                            style={{ marginRight: '1rem' }}
-                        />
-                        <Button variant="contained" color="primary" onClick={() => handleEdit(null)}>
-                            Add User
-                        </Button>
-                    </div>
-                    <div className="ag-theme-quartz" style={{ height: 500 }}>
-                        <AgGridReact 
-                            rowData={rowData.filter((row) =>
-                                Object.values(row).some(val =>
-                                    val.toString().toLowerCase().includes(searchText.toLowerCase())
-                                )
-                            )} 
-                            columnDefs={columnDefs}
-                            pagination={true}
-                            paginationPageSize={paginationPageSize}
-                        />
-                    </div>
-                </div>
-            </div>
-
-            {/* Delete Confirmation Dialog */}
-            <Dialog open={openDeleteDialog} onClose={handleDialogClose}>
-                <DialogTitle>Delete User</DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Are you sure you want to delete this user?
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleDialogClose} color="primary">Cancel</Button>
-                    <Button onClick={handleConfirmDelete} color="error">Delete</Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Edit/Add User Dialog */}
-            <Dialog open={openEditDialog} onClose={handleDialogClose}>
-                <DialogTitle>{selectedUser ? "Edit User" : "Add User"}</DialogTitle>
-                <DialogContent>
-                    <form onSubmit={handleSubmit(handleSaveUser)}>
-                    <Controller
-                        name="firstName"
-                        control={control}
-                        rules={{ required: "First name is required" }}
-                        render={({ field }) => (
-                            <TextField
-                                {...field}
-                                label={
-                                <span>
-                                Full Name <span style={{ color: 'red' }}>*</span>
-                                </span>
-                                }
-                                fullWidth margin="dense"   
-                                error={!!errors.firstName}
-                                helperText={errors.firstName?.message}
-                            />
-                        )}
-                    />
-                        <Controller
-                            name="lastName"
-                            control={control}
-                            rules={{ required: "Last name is required" }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label={
-                                    <span>
-                                    Last Name <span style={{ color: 'red' }}>*</span>
-                                    </span>
-                                }
-                                    fullWidth
-                                    margin="dense"
-                                    error={!!errors.lastName}
-                                    helperText={errors.lastName?.message}
-                                />
-                            )}
-                        />
-                        <Controller
-                            name="designationId"
-                            control={control}
-                            rules={{ required: "Designation is required" }}
-                            render={({ field }) => (
-                                <FormControl fullWidth margin="dense" error={!!errors.designationId}>
-                                    <InputLabel><span>
-                                            Designation <span style={{ color: 'red' }}>*</span>
-                                            </span></InputLabel>
-                                    <Select
-                                        {...field}
-                                        label={
-                                            <span>
-                                            Designation <span style={{ color: 'red' }}>*</span>
-                                            </span>
-                                        }
-                                        value={field.value || ""}
-                                        //onChange={e => field.onChange(e)}  // Ensure the value is updated on change
-                                    >
-                                        {designations && designations.length > 0 && designations.map((designation) => (
-                                            <MenuItem key={designation.id} value={designation.id}>
-                                                {designation.name}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                    {errors.designationId && <FormHelperText>{errors.designationId?.message}</FormHelperText>}
-                                </FormControl>
-                            )}
-                        />
-                        <Controller
-                                name="roleId"
-                                control={control}
-                                rules={{ required: "Role is required" }}
-                                render={({ field }) => (
-                                    <FormControl fullWidth margin="dense" error={!!errors.roleId}>
-                                        <InputLabel><span>
-                                                    Role <span style={{ color: 'red' }}>*</span>
-                                                    </span></InputLabel>
-                                        <Select
-                                            {...field}
-                                            label={
-                                                    <span>
-                                                    Role <span style={{ color: 'red' }}>*</span>
-                                                    </span>
-                                                }
-                                            value={field.value || ""}
-                                        >
-                                            {roles && roles.length > 0 && roles.map((role) => (
-                                                <MenuItem key={role.id} value={role.id}>
-                                                    {role.name}
-                                                </MenuItem>
-                                            ))}
-                                        </Select>
-                                        {errors.roleId && <FormHelperText>{errors.roleId?.message}</FormHelperText>}
-                                    </FormControl>
-                                )}
-                            />
-
-
-                            
-                        <Controller
-                            name="contactNo"
-                            control={control}
-                            rules={{
-                                pattern: {
-                                    value: /^[0-9]{10,}$/,  // Adjust this regex for phone number validation
-                                    message: "Invalid contact number"
-                                }
-                            }}
-                            render={({ field }) => (
-                                <div style={{ width: '100%' }}>
-                                    <PhoneInput
-                                        country="in"
-                                        value={field.value || ""}
-                                        onChange={field.onChange}
-                                        inputProps={{
-                                        name: field.name,
-                                        }}
-                                        inputStyle={{
-                                        width: '100%',
-                                        paddingLeft: '50px',
-                                        paddingRight: '10px',
-                                        fontSize: '14px',
-                                        }}
-                                        buttonStyle={{
-                                        paddingRight: '12px',
-                                        }}
-                                    />
-                                    {errors.contactNo && (
-                                        <div style={{ color: 'red', fontSize: '12px' }}>
-                                            {errors.contactNo.message}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-                        />
-                        <Controller
-                            name="email"
-                            control={control}
-                            rules={{
-                                required: "Email is required",
-                                pattern: { value: /^\S+@\S+$/i, message: "Invalid email address" }
-                            }}
-                            render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label={<span>
-                                        Email <span style={{ color: 'red' }}>*</span>
-                                        </span>}
-                                    fullWidth
-                                    margin="dense"
-                                    error={!!errors.email}
-                                    helperText={errors.email?.message}
-                                />
-                            )}
-                        />
-                    </form>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={handleDialogClose} color="primary">Cancel</Button>
-                    <Button onClick={handleSubmit(handleSaveUser)} color="primary">{selectedUser ? "Update" : "Save"}</Button>
-                </DialogActions>
-            </Dialog>
-
-            {/* Snackbar for Success/Error */}
-            <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
-                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: '100%' }}>
-                    {snackbarMessage}
-                </Alert>
-            </Snackbar>
-        </>
+  const handleEdit = (user) => {
+    setSelectedUser(user);
+    reset(
+      user || {
+        firstName: "",
+        lastName: "",
+        designationId: "",
+        roleId: "",
+        contactNo: "",
+        email: ""
+      }
     );
+    setOpenEditDialog(true);
+  };
+
+  const handleDelete = (user) => {
+    setSelectedUser(user);
+    setOpenDeleteDialog(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await DeleteUser(selectedUser.id);
+      await loadUsers(); // ✅ reload list
+      showSnackbar("User deleted successfully", "success");
+    } catch (error) {
+      console.error(error);
+      showSnackbar("Failed to delete user", "error");
+    } finally {
+      setOpenDeleteDialog(false);
+      setSelectedUser(null);
+    }
+  };
+
+  const handleDialogClose = () => {
+    setOpenDeleteDialog(false);
+    setOpenEditDialog(false);
+    setSelectedUser(null);
+    reset();
+  };
+
+  const handleSaveUser = async (data) => {
+    try {
+      if (selectedUser) {
+         // 🔴 UPDATE USER
+
+      const selectedRole = roles.find(r => r.id === data.roleId);
+
+      const updatePayload = {
+        UserId: selectedUser.id,              // ✅ REQUIRED
+        FirstName: data.firstName,
+        LastName: data.lastName,
+        Role: selectedRole?.name || data.role, // ✅ ROLE NAME
+        DesignationId: data.designationId,     // ✅ GUID string
+        ContactNo: data.contactNo || null      // ✅ nullable
+      };
+
+      console.log("Updating user with payload:", updatePayload);
+
+      const response = await UpdateUser(updatePayload);
+
+      if (!response.errors) {
+        await loadUsers();
+        showSnackbar("User updated successfully", "success");
+      } else {
+        showSnackbar("Failed to update user", "error");
+      }
+      } else {
+        // ADD
+        const role = roles.find(r => r.id === data.roleId);
+
+        const jsonData = {
+          username: data.email,
+          role: role?.name,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          designationId: data.designationId,
+          contactNo: data.contactNo
+        };
+
+        const response = await AddUser(jsonData);
+        if (!response.errors) {
+          await loadUsers(); // ✅ reload
+          showSnackbar("User added successfully", "success");
+        } else {
+          showSnackbar("Failed to add user", "error");
+        }
+      }
+    } catch (error) {
+      console.error(error);
+      showSnackbar("Error while saving user", "error");
+    } finally {
+      setOpenEditDialog(false);
+      setSelectedUser(null);
+      reset();
+    }
+  };
+
+  const columnDefs = [
+    { headerName: "First Name", field: "firstName", flex: 1 },
+    { headerName: "Last Name", field: "lastName", flex: 1 },
+    { headerName: "Designation", field: "designation", flex: 1.5 },
+    { headerName: "Role", field: "role", flex: 1 },
+    { headerName: "Contact No", field: "contactNo", flex: 1 },
+    { headerName: "Email", field: "email", flex: 1.5 },
+    {
+      headerName: "Actions",
+      flex: 0.7,
+      cellRenderer: (params) => (
+        <>
+          <IconButton onClick={() => handleEdit(params.data)}>
+            <EditIcon color="primary" />
+          </IconButton>
+          <IconButton onClick={() => handleDelete(params.data)}>
+            <DeleteIcon color="error" />
+          </IconButton>
+        </>
+      )
+    }
+  ];
+
+  return (
+    <>
+      <div className="right-content w-100">
+        <div className="card shadow border-0 p-4">
+          <h5>Manage Users</h5>
+        </div>
+
+        <div className="card shadow border-0 p-3">
+          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+            <TextField
+              placeholder="Search..."
+              size="small"
+              value={searchText}
+              onChange={handleSearch}
+              sx={{ mr: 1 }}
+            />
+            <Button variant="contained" onClick={() => handleEdit(null)}>
+              Add User
+            </Button>
+          </div>
+
+          <div className="ag-theme-quartz" style={{ height: 500 }}>
+            <AgGridReact
+              rowData={rowData.filter(row =>
+                Object.values(row).some(v =>
+                  String(v).toLowerCase().includes(searchText.toLowerCase())
+                )
+              )}
+              columnDefs={columnDefs}
+              pagination
+              paginationPageSize={paginationPageSize}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* DELETE DIALOG */}
+      <Dialog open={openDeleteDialog} onClose={handleDialogClose}>
+        <DialogTitle>Delete User</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this user?
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose}>Cancel</Button>
+          <Button color="error" onClick={handleConfirmDelete}>Delete</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ADD / EDIT DIALOG */}
+      <Dialog open={openEditDialog} onClose={handleDialogClose} fullWidth maxWidth="sm">
+        <DialogTitle>{selectedUser ? "Edit User" : "Add User"}</DialogTitle>
+        <DialogContent>
+          <form onSubmit={handleSubmit(handleSaveUser)}>
+            <Controller
+              name="firstName"
+              control={control}
+              rules={{ required: "First name required" }}
+              render={({ field }) => (
+                <TextField {...field} label="First Name *" fullWidth margin="dense" error={!!errors.firstName} helperText={errors.firstName?.message} />
+              )}
+            />
+
+            <Controller
+              name="lastName"
+              control={control}
+              rules={{ required: "Last name required" }}
+              render={({ field }) => (
+                <TextField {...field} label="Last Name *" fullWidth margin="dense" error={!!errors.lastName} helperText={errors.lastName?.message} />
+              )}
+            />
+
+            <Controller
+              name="designationId"
+              control={control}
+              rules={{ required: "Designation required" }}
+              render={({ field }) => (
+                <FormControl fullWidth margin="dense" error={!!errors.designationId}>
+                  <InputLabel>Designation *</InputLabel>
+                  <Select {...field} label="Designation *">
+                    {designations.map(d => (
+                      <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>{errors.designationId?.message}</FormHelperText>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="roleId"
+              control={control}
+              rules={{ required: "Role required" }}
+              render={({ field }) => (
+                <FormControl fullWidth margin="dense" error={!!errors.roleId}>
+                  <InputLabel>Role *</InputLabel>
+                  <Select {...field} label="Role *">
+                    {roles.map(r => (
+                      <MenuItem key={r.id} value={r.id}>{r.name}</MenuItem>
+                    ))}
+                  </Select>
+                  <FormHelperText>{errors.roleId?.message}</FormHelperText>
+                </FormControl>
+              )}
+            />
+
+            <Controller
+              name="contactNo"
+              control={control}
+              render={({ field }) => (
+                <PhoneInput country="in" value={field.value} onChange={field.onChange} />
+              )}
+            />
+
+            <Controller
+              name="email"
+              control={control}
+              rules={{ required: "Email required" }}
+              render={({ field }) => (
+                <TextField {...field} label="Email *" fullWidth margin="dense" error={!!errors.email} helperText={errors.email?.message} />
+              )}
+            />
+          </form>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleDialogClose}>Cancel</Button>
+          <Button onClick={handleSubmit(handleSaveUser)} variant="contained">
+            {selectedUser ? "Update" : "Save"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={snackbarOpen} autoHideDuration={6000} onClose={handleSnackbarClose}>
+        <Alert severity={snackbarSeverity}>{snackbarMessage}</Alert>
+      </Snackbar>
+    </>
+  );
 };
 
 export default ManageUsers;

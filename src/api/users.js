@@ -16,9 +16,9 @@ export async function GetUsers(){
     }
 }
 
-export async function UpdateUser(id, data){
+export async function UpdateUser(data){
     try {
-        let URL = `${process.env.REACT_APP_API_URL}/client/`+id;
+        let URL = `${process.env.REACT_APP_API_URL}/auth/update-user/`;
         console.log(URL);
         debugger
         let headers = {};

@@ -8,16 +8,69 @@
   <meta name="theme-color" content="#000000" />
   <meta name="description" content="Pro Dynamic Research" />
   <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-  <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
   <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+  
+  <!-- Slick carousel styles -->
   <link rel="stylesheet" type="text/css" charset="UTF-8"
     href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick.min.css" />
   <link rel="stylesheet" type="text/css"
     href="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.8.1/slick-theme.min.css" />
+
+  <!-- Disable caching of index.html -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
   <title>ProDynamicResearch</title>
+
+  <!-- 🔄 Auto-update checker -->
+  <script>
+    (function () {
+      var KEY = 'appVersion';
+      var url = '%PUBLIC_URL%/version.json?t=' + Date.now();
+
+      // Clears cache and reloads page
+      function hardReload() {
+        if ('caches' in window) {
+          caches.keys().then(function (keys) {
+            keys.forEach(function (k) {
+              caches.delete(k);
+            });
+          });
+        }
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.getRegistrations().then(function (regs) {
+            regs.forEach(function (r) {
+              r.unregister();
+            });
+          });
+        }
+        window.location.reload(true);
+      }
+
+      // Check version.json for new deployment
+      fetch(url, { cache: 'no-store' })
+        .then(function (r) {
+          if (!r.ok) throw new Error('version fetch failed');
+          return r.json();
+        })
+        .then(function (data) {
+          var latest = data && data.version;
+          if (!latest) return;
+
+          var current = localStorage.getItem(KEY);
+          if (current && current !== latest) {
+            localStorage.setItem(KEY, latest);
+            hardReload();
+          } else if (!current) {
+            localStorage.setItem(KEY, latest);
+          }
+        })
+        .catch(function () {
+          // Ignore network errors silently
+        });
+    })();
+  </script>
 </head>
 
 <body>

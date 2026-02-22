@@ -33,14 +33,26 @@ import { GetSurvey } from "../../api/survey";
 import html2pdf from "html2pdf.js";
 import logo from "../../assets/images/FullLogo_NoBuffer.png";
 import ESOMAR from "../../assets/images/ESOMAR.PNG";
+import footerLinkedInImg from "../../assets/images/linkedin.png";
+import footerFacebookImg from "../../assets/images/facebook.png";
+import footerWebImg from "../../assets/images/web.png";
+import { LinkedIn, Facebook, Language } from "@mui/icons-material";
 
-const COMPANY_FOOTER_LINES = [
-  "Your Company Pvt. Ltd. | Registered Office: 12, Business Park, City",
-  "GSTIN: 12ABCDE1234F1Z5 | Phone: +91-XXXXXXXXXX | Email: billing@yourcompany.com",
+/**
+ * Footer lines (we will stamp only 1-2 short lines into the PDF footer)
+ */
+const PDF_FOOTER_LINES = [
+  "Pease send your RFQs to sales@prodynamicresearch.com for response 24x7",
 ];
 
+const SOCIAL_LINKS = {
+  linkedin: "https://www.linkedin.com/company/pro-dynamic-research",
+  facebook: "https://www.facebook.com/prodynamicresearch",
+  website: "http://prodynamicresearch.com",
+};
+
 const InvoiceListForSurvey = () => {
-  const { sid } = useParams(); // survey id from route
+  const { sid } = useParams();
   const [loading, setLoading] = useState(true);
   const [invoices, setInvoices] = useState([]);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
@@ -50,13 +62,12 @@ const InvoiceListForSurvey = () => {
   const [downloadLoadingId, setDownloadLoadingId] = useState(null);
   const [confirmSendOpen, setConfirmSendOpen] = useState(false);
   const [sendingPreviewPdfId, setSendingPreviewPdfId] = useState(null);
+  const [footerIconsData, setFooterIconsData] = useState({ linkedin: null, facebook: null, website: null });
   const [survey, setSurvey] = useState({});
   const navigate = useNavigate();
 
-  // ref for printable area
   const printRef = useRef(null);
 
-  // Helper: Format address lines into HTML string
   const formatAddress = (inv) => {
     if (!inv) return "";
     const a1 = inv.addrLine1 ?? inv.addr1 ?? inv.addressLine1 ?? "";
@@ -72,6 +83,35 @@ const InvoiceListForSurvey = () => {
     fetchInvoices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sid]);
+
+  // preload icons to data URLs once (used by jsPDF.addImage)
+  useEffect(() => {
+    const loadDataUrl = async (src) => {
+      try {
+        const res = await fetch(src);
+        const blob = await res.blob();
+        return await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(blob);
+        });
+      } catch (e) {
+        console.warn("Failed to load footer icon", src, e);
+        return null;
+      }
+    };
+
+    (async () => {
+      const [lnk, fb, web] = await Promise.all([
+        loadDataUrl(footerLinkedInImg),
+        loadDataUrl(footerFacebookImg),
+        loadDataUrl(footerWebImg),
+      ]);
+      setFooterIconsData({ linkedin: lnk, facebook: fb, website: web });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const fetchInvoices = async () => {
     try {
@@ -99,7 +139,6 @@ const InvoiceListForSurvey = () => {
     setViewOpen(false);
   };
 
-  // download helper for blob (server-side PDF)
   const downloadBlob = (blob, filename) => {
     if (!(blob instanceof Blob)) {
       blob = new Blob([blob], { type: "application/octet-stream" });
@@ -114,12 +153,11 @@ const InvoiceListForSurvey = () => {
     window.URL.revokeObjectURL(url);
   };
 
-  // server-side download (existing)
   const handleDownload = async (invoice) => {
     const id = invoice.invoiceId ?? invoice.id;
     try {
       setDownloadLoadingId(id);
-      const resp = await downloadInvoicePdf(id); // should use responseType: 'blob' in axios
+      const resp = await downloadInvoicePdf(id); // axios should use responseType: 'blob'
       const blob = resp.data;
       const contentType = blob?.type || resp.headers?.["content-type"] || "";
       if (contentType && !contentType.includes("pdf")) {
@@ -139,54 +177,82 @@ const InvoiceListForSurvey = () => {
       setDownloadLoadingId(null);
     }
   };
+// stamp footer with icons and links onto every page (icons are added as images, links via pdf.link)
+const stampFooterOnPdf = (pdf, footerLines = [], options = {}, iconsData = [], iconUrls = []) => {
+  try {
+    const margin = typeof options.margin === "number" ? options.margin : 8; // mm
+    const fontSizePt = options.fontSizePt ?? 9;
+    const pageCount = pdf.internal.getNumberOfPages();
+    const pageHeight = pdf.internal.pageSize.getHeight(); // mm
+    const pageWidth = pdf.internal.pageSize.getWidth(); // mm
 
-  // Robust stamp footer - places footer above bottom margin, left-aligned lines + right-side page text
-  const stampFooterOnPdf = (pdf, footerLines = [], options = {}) => {
-    try {
-      const margin = typeof options.margin === "number" ? options.margin : 12; // mm
-      const fontSizePt = options.fontSizePt ?? 10;
-      const pageCount = pdf.internal.getNumberOfPages();
-      const pageHeight = pdf.internal.pageSize.getHeight(); // mm
-      const pageWidth = pdf.internal.pageSize.getWidth(); // mm
+    const iconSizeMm = options.iconSizeMm ?? 6; // mm
+    const iconGapMm = options.iconGapMm ?? 2; // mm
 
-      pdf.setFont("helvetica");
-      pdf.setFontSize(fontSizePt);
-      pdf.setTextColor(80);
+    pdf.setFont("helvetica");
+    pdf.setFontSize(fontSizePt);
+    pdf.setTextColor(70);
 
-      const fontSizeMm = fontSizePt * 0.352778;
-      const lineSpacing = options.lineSpacingMm ?? (fontSizeMm + 1.5);
-      const footerHeight = Math.max(1, footerLines.length) * lineSpacing;
+    const fontSizeMm = fontSizePt * 0.352778;
+    const lineSpacing = options.lineSpacingMm ?? (fontSizeMm + 1.2);
+    const footerHeight = Math.max(1, footerLines.length + 1) * lineSpacing;
 
-      for (let i = 1; i <= pageCount; i++) {
-        pdf.setPage(i);
+    for (let i = 1; i <= pageCount; i++) {
+      pdf.setPage(i);
 
-        // Y position so footer sits *above* bottom margin
-        let startY = pageHeight - margin - footerHeight + (fontSizeMm * 0.2);
-        if (startY < margin) startY = pageHeight - margin - footerHeight;
+      let startY = pageHeight - margin - footerHeight + (fontSizeMm * 0.2);
+      if (startY < margin) startY = pageHeight - margin - footerHeight;
 
-        // left aligned
-        const leftX = margin;
-        footerLines.forEach((line, idx) => {
-          const y = startY + idx * lineSpacing;
-          const maxWidth = pageWidth - margin * 2 - 50; // leave space for right text
-          const splitted = pdf.splitTextToSize(String(line), maxWidth);
-          pdf.text(splitted, leftX, y);
+      // draw text lines (left aligned)
+      footerLines.forEach((line, idx) => {
+        const y = startY + idx * lineSpacing;
+        const maxWidth = pageWidth - margin * 2 - 70; // leave space for icons or extra text
+        const splitted = pdf.splitTextToSize(String(line), maxWidth);
+        pdf.text(splitted, margin, y);
+      });
+
+      // ====== NEW SECTION: "Follow us on:" with icons on second line (left side) ======
+      if (iconsData.length > 0) {
+        const followText = "Follow us on:";
+        const followTextWidth = (pdf.getStringUnitWidth(followText) * pdf.internal.getFontSize()) / pdf.internal.scaleFactor;
+
+        const iconsY = startY + (footerLines.length) * lineSpacing; // place on next line
+        let iconsStartX = margin + followTextWidth + 2; // start icons right after the text
+
+        // draw "Follow us on:"
+        pdf.text(followText, margin, iconsY + iconSizeMm / 2.5);
+
+        // draw icons next to the text
+        iconsData.forEach((d, idx) => {
+          if (!d) return;
+          try {
+            pdf.addImage(d, "PNG", iconsStartX, iconsY - iconSizeMm / 2, iconSizeMm, iconSizeMm);
+            // add hyperlink rectangle over the icon area
+            const url = iconUrls[idx];
+            if (url) {
+              pdf.link(iconsStartX, iconsY - iconSizeMm / 2, iconSizeMm, iconSizeMm, { url });
+            }
+          } catch (e) {
+            console.warn("pdf.addImage failed for footer icon", e);
+          }
+          iconsStartX += iconSizeMm + iconGapMm;
         });
-
-        // right aligned text (page number)
-        const pageText = `Page ${i} of ${pageCount}`;
-        const txtWidth =
-          (pdf.getStringUnitWidth(pageText) * pdf.internal.getFontSize()) / pdf.internal.scaleFactor;
-        const xRight = pageWidth - margin - txtWidth;
-        const rightY = startY + (footerLines.length - 1) * lineSpacing;
-        pdf.text(pageText, xRight, rightY);
       }
-    } catch (err) {
-      console.warn("stampFooterOnPdf error:", err);
-    }
-  };
 
-  // client-side PDF generation from preview using html2pdf
+      // page number on right
+      const pageText = `Page ${i} of ${pageCount}`;
+      const txtWidth = (pdf.getStringUnitWidth(pageText) * pdf.internal.getFontSize()) / pdf.internal.scaleFactor;
+      const xRight = pageWidth - margin - txtWidth;
+      const rightY = startY + (footerLines.length - 1) * lineSpacing;
+      pdf.text(pageText, xRight, rightY);
+    }
+  } catch (err) {
+    console.warn("stampFooterOnPdf error:", err);
+  }
+};
+
+
+  // client-side PDF generation
   const handleClientDownload = async (invoice) => {
     const el = printRef.current;
     if (!el) {
@@ -198,26 +264,28 @@ const InvoiceListForSurvey = () => {
       setDownloadLoadingId(id);
       const invoiceNumber = invoice?.invoiceNumber ?? invoice?.invoiceNo ?? invoice?.number ?? "invoice";
 
-      const opt = {
-        margin: 12, // mm
-        filename: `${invoiceNumber}.pdf`,
-        image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 1.4, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
-      };
-
-      // render to a jsPDF instance
+const opt = {
+  margin: 10, // mm — match the @page margin in CSS
+  filename: `${invoiceNumber}.pdf`,
+  image: { type: "jpeg", quality: 0.95 },
+  html2canvas: { scale: 1.0, useCORS: true, logging: false, scrollY: 0 },
+  jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+  pagebreak: {
+    mode: ["css", "legacy"],
+    avoid: [".invoice-header", ".terms", ".invoice-table", ".bottom-spacer"]
+  },
+};
+      window.scrollTo(0, 0);
       const worker = html2pdf().set(opt).from(el).toPdf();
-      const pdf = await worker.get("pdf"); // jsPDF instance
+      const pdf = await worker.get("pdf");
 
-      // stamp footer
-      stampFooterOnPdf(pdf, COMPANY_FOOTER_LINES, { margin: opt.margin, fontSizePt: 10 });
+      // stamp short footer lines + icons (icons order: website, linkedin, facebook)
+      const iconArray = [footerIconsData.website, footerIconsData.linkedin, footerIconsData.facebook];
+      const iconUrls = [SOCIAL_LINKS.website, SOCIAL_LINKS.linkedin, SOCIAL_LINKS.facebook];
+      stampFooterOnPdf(pdf, PDF_FOOTER_LINES, { margin: opt.margin, fontSizePt: 9, iconSizeMm: 6, iconGapMm: 3 }, iconArray, iconUrls);
 
-      // save pdf
       pdf.save(`${invoiceNumber}.pdf`);
-
-      setSnackbar({ open: true, message: "PDF downloaded (client-side) with footer", severity: "success" });
+      setSnackbar({ open: true, message: "PDF downloaded with stamped footer.", severity: "success" });
     } catch (err) {
       console.error("Client PDF error:", err);
       setSnackbar({ open: true, message: "Failed to generate PDF", severity: "error" });
@@ -235,40 +303,88 @@ const InvoiceListForSurvey = () => {
     const id = invoice.invoiceId ?? invoice.id;
     try {
       setSendingPreviewPdfId(id);
-
       const invoiceNumber = invoice?.invoiceNumber ?? invoice?.invoiceNo ?? invoice?.number ?? "invoice";
+
       const opt = {
-        margin: 12,
+        margin: 8,
         filename: `${invoiceNumber}.pdf`,
         image: { type: "jpeg", quality: 0.95 },
-        html2canvas: { scale: 1.6, useCORS: true, logging: false },
+        html2canvas: { scale: 1.0, useCORS: true, logging: false, scrollY: 0 },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-        pagebreak: { mode: ["css", "legacy"] },
+        pagebreak: { mode: ["css", "legacy"], avoid: [".invoice-header", ".terms", ".invoice-table"] },
       };
 
+      window.scrollTo(0, 0);
       const worker = html2pdf().set(opt).from(el).toPdf();
       const pdf = await worker.get("pdf");
 
-      // stamp footer
-      stampFooterOnPdf(pdf, COMPANY_FOOTER_LINES, { margin: opt.margin, fontSizePt: 10 });
+      const iconArray = [footerIconsData.website, footerIconsData.linkedin, footerIconsData.facebook];
+      const iconUrls = [SOCIAL_LINKS.website, SOCIAL_LINKS.linkedin, SOCIAL_LINKS.facebook];
+      stampFooterOnPdf(pdf, PDF_FOOTER_LINES, { margin: opt.margin, fontSizePt: 9, iconSizeMm: 6, iconGapMm: 3 }, iconArray, iconUrls);
 
-      // produce blob and send
       const blob = pdf.output("blob");
       const fileName = `${invoiceNumber}.pdf`;
       const file = new File([blob], fileName, { type: "application/pdf" });
 
-      const toEmail =
-        invoice.accountEmail ||
-        invoice.email ||
-        (survey?.accountEmail ?? "") ||
-        "";
-
+      const toEmail = invoice.accountEmail || invoice.email || (survey?.accountEmail ?? "") || "";
       const subject = `Invoice ${invoiceNumber}`;
-      const body = `Dear Client,\n\nPlease find attached invoice ${invoiceNumber}.\n\nRegards,\nTeam`;
+      const body = `<!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width,initial-scale=1" />
+          <title>Invoice ${invoiceNumber}</title>
+          <style>
+            body { font-family: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; color: #222; margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+            .container { width: 100%; max-width: 600px; margin: 0 auto; padding: 20px; box-sizing: border-box; }
+            .header { padding-bottom: 10px; border-bottom: 1px solid #eee; margin-bottom: 16px; }
+            .content p { margin: 12px 0; line-height: 1.5; }
+            .cta { margin-top: 18px; }
+            .button { display: inline-block; background: #0858f7; color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; }
+            .footer { margin-top: 22px; font-size: 12px; color: #666; border-top: 1px solid #f0f0f0; padding-top: 12px; }
+            .social a { margin-right: 8px; color: #0858f7; text-decoration: none; }
+            @media (max-width:480px){ .container{padding:12px;} .button{padding:8px 12px;} }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h2 style="margin:0; font-size:18px;">Pro Dynamic Research</h2>
+            </div>
 
+            <div class="content">
+              <p>Dear Client,</p>
+
+              <p>Please find attached invoice <strong>#${invoiceNumber}</strong> for your reference.</p>
+
+              <p>If you would like to view the invoice online or have any questions, reply to this email or contact our sales team at
+              <a href="mailto:sales@prodynamicresearch.com">sales@prodynamicresearch.com</a>.</p>
+
+              <div class="cta">
+                <!-- Optional: link to website (use only if you host the invoice somewhere) -->
+                <a class="button" href="${SOCIAL_LINKS.website}" target="_blank" rel="noopener">Visit our website</a>
+              </div>
+
+              <p style="margin-top:18px;">Regards,<br/>Team — Pro Dynamic Research</p>
+            </div>
+
+            <div class="footer">
+              <div>Pease send your RFQs to <a href="mailto:sales@prodynamicresearch.com">sales@prodynamicresearch.com</a> for response 24x7</div>
+              <div style="margin-top:8px;" class="social">
+                Follow us:
+                <a href="${SOCIAL_LINKS.linkedin}" target="_blank" rel="noopener">LinkedIn</a> |
+                <a href="${SOCIAL_LINKS.facebook}" target="_blank" rel="noopener">Facebook</a> |
+                <a href="${SOCIAL_LINKS.website}" target="_blank" rel="noopener">Website</a>
+              </div>
+            </div>
+          </div>
+        </body>
+        </html>`;
+
+      //const body = `Dear client. Please find the attached invoice <strong>#${invoiceNumber}</strong> for your reference.`;
       await sendInvoiceWithPdfAttachment(id, file, { toEmail, subject, body });
 
-      setSnackbar({ open: true, message: "Email sent with PDF attachment (with footer).", severity: "success" });
+      setSnackbar({ open: true, message: "Email sent with PDF attachment.", severity: "success" });
     } catch (err) {
       console.error("Send mail (preview PDF) error:", err);
       setSnackbar({ open: true, message: "Failed to send email with attachment.", severity: "error" });
@@ -289,7 +405,6 @@ const InvoiceListForSurvey = () => {
       setConfirmSendOpen(false);
       return;
     }
-
     try {
       setSendingInvoiceId(invoiceId);
       const resp = await sendInvoiceById(invoiceId);
@@ -336,12 +451,8 @@ const InvoiceListForSurvey = () => {
             </div>
           </div>
 
-          <Box display="flex" gap={1}>
-            <Button
-              variant="contained"
-              color="primary"
-              onClick={() => navigate("/survey/invoice/create/" + sid)}
-            >
+          <Box display="flex" gap={1} alignItems="center">
+            <Button variant="contained" color="primary" onClick={() => navigate("/survey/invoice/" + sid)}>
               New Invoice
             </Button>
           </Box>
@@ -389,13 +500,7 @@ const InvoiceListForSurvey = () => {
                               <VisibilityIcon />
                             </IconButton>
 
-                            <IconButton size="small" onClick={() => handleDownload(inv)} title="Download PDF" disabled={downloadLoadingId === id}>
-                              {downloadLoadingId === id ? <CircularProgress size={18} /> : <DownloadIcon />}
-                            </IconButton>
-
-                            <IconButton size="small" onClick={() => handleSend(inv)} title="Send" disabled={sendingInvoiceId === id}>
-                              {sendingInvoiceId === id ? <CircularProgress size={18} /> : <SendIcon />}
-                            </IconButton>
+                            
                           </TableCell>
                         </TableRow>
                       );
@@ -414,7 +519,7 @@ const InvoiceListForSurvey = () => {
           )}
         </Paper>
 
-        {/* View Dialog - show preview and client-side download */}
+        {/* View Dialog */}
         <Dialog open={viewOpen} onClose={() => setViewOpen(false)} maxWidth="md" fullWidth>
           <DialogTitle>Invoice Details</DialogTitle>
           <DialogContent>
@@ -447,15 +552,11 @@ const InvoiceListForSurvey = () => {
 
                 <Box mb={1}>
                   <Typography variant="subtitle2"><strong>Billing Address</strong></Typography>
-                  <Typography
-                    variant="body2"
-                    sx={{ whiteSpace: "pre-line" }}
-                  >
+                  <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
                     {formatAddress(selectedInvoice)?.replace(/<br\/>/g, "\n") ?? "-"}
                   </Typography>
                 </Box>
 
-                {/* Actions for preview: client-side download + server download */}
                 <Box display="flex" justifyContent="flex-end" gap={1} mb={1}>
                   <Button
                     size="small"
@@ -480,14 +581,14 @@ const InvoiceListForSurvey = () => {
                 </Box>
 
                 {/* Printable area */}
-                <div ref={printRef} className="invoice-print" role="region" aria-label="invoice-printable">
+                <div ref={printRef} className="invoice-print" role="region" aria-label="invoice-printable" style={{ position: "relative", paddingBottom: 24 }}>
                   <div className="invoice-content">
                     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                       <img src={logo} alt="Company Logo" style={{ maxHeight: 72, maxWidth: "45%" }} />
                       <img src={ESOMAR} alt="ESOMAR Logo" style={{ maxHeight: 72, maxWidth: "45%" }} />
                     </Box>
 
-                    <Box display="flex" justifyContent="space-between" mb={2} className="invoice-header">
+                    <Box display="flex" justifyContent="space-between" mb={2} className="invoice-header avoid-break">
                       <Box>
                         <Typography variant="h6">Invoice #{selectedInvoice.invoiceNumber ?? selectedInvoice.invoiceNo}</Typography>
                         <Typography variant="body2">{selectedInvoice.clientSurveyName ?? selectedInvoice.surveyName}</Typography>
@@ -507,7 +608,7 @@ const InvoiceListForSurvey = () => {
                       </Typography>
                     </Box>
 
-                    <Table size="small" style={{ border: "1px solid #ccc", borderCollapse: "collapse" }}>
+                    <Table className="invoice-table avoid-break" size="small" style={{ border: "1px solid #ccc", borderCollapse: "collapse" }}>
                       <TableHead>
                         <TableRow>
                           <TableCell style={{ width: "6%" }}>#</TableCell>
@@ -523,7 +624,6 @@ const InvoiceListForSurvey = () => {
                             <TableCell>{it.lineNo ?? it.line_no ?? i + 1}</TableCell>
                             <TableCell className="description">{it.description ?? it.desc ?? "-"}</TableCell>
                             <TableCell>{it.quantity ?? it.qty ?? "-"}</TableCell>
-
                             <TableCell>{(it.unitCost ?? it.unit_price ?? 0).toFixed?.(2) ?? it.unitCost}</TableCell>
                             <TableCell>{(it.lineTotal ?? it.total ?? 0).toFixed?.(2) ?? it.lineTotal}</TableCell>
                           </TableRow>
@@ -535,60 +635,33 @@ const InvoiceListForSurvey = () => {
                       </TableBody>
                     </Table>
 
-                    <Box mt={3} className="terms">
+                    <Box mt={3} className="terms avoid-break">
                       <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
+{`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
 
 AXIS BANK,
 GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
+SHOP NO. 72,73,74 AND 75,
+PARAS TRADE CENTRE,
+GURUGRAM, HARYANA -122003
 
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
+ACCOUNT NUMBER: 920020061212577
+IFSC: UTIB0004373
 
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
+FOR RECEIVING INTERNATIONAL WIRES IN USD ONLY:
+Swift Code: AXISINBBA31
 
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
-
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
-
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
-                      </Typography>
-                      <Typography variant="body2" sx={{ whiteSpace: "pre-line" }}>
-                        {`WIRES/ACH PAYMENTS SHOULD BE SENT TO (BANK ADDRESS):
-
-AXIS BANK,
-GROUND FLOOR,
-SHOP NO. 72,73,74 AND 75,`}
+FOR CREDIT TO (COMPANY ADDRESS):
+PRO DYNAMIC RESEARCH,
+FLAT NO. 904, TOWER 9, VALLEY VIEW ESTATE,
+GURGAON FARIDABAD ROAD,
+GURGRAM, HARYANA-122003
+GSTIN 06ASBPL4141J1ZX`}
                       </Typography>
                     </Box>
 
-                    {/* spacer to prevent footer overlap when html2canvas captures */}
-                    <div className="bottom-spacer" />
+                    {/* NO HTML footer here — footer will be stamped into the PDF only */}
+
                   </div>
                 </div>
               </Box>

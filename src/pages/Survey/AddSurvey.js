@@ -88,6 +88,7 @@ const AddSurvey = () => {
 
   // available languages for the selected country (objects with id, name, displayName)
   const [availableLanguages, setAvailableLanguages] = useState([]);
+  //const [submitType, setSubmitType] = useState("submit");
 
   const showSnackbar = (message, severity) => {
     setSnackbarMessage(message);
@@ -159,12 +160,11 @@ const AddSurvey = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCountry]);
 
-  const onSubmit = async (data) => {
+  const onSubmit = async (data, event) => {
     try {
       // console.log("Form Data:", data);
       const createdById = localStorage.getItem("userid");
-      const end_date = data.endDate ? new Date(data.endDate).toISOString().split("T")[0] : null;
-      const launch_date = data.launchDate ? new Date(data.launchDate).toISOString().split("T")[0] : null;
+      const submitType = event.nativeEvent.submitter.name; // "draft" or "submit"
 
       // data.language is an array of language ids
       const languageIds = Array.isArray(data.language) ? data.language : (data.language ? [data.language] : []);
@@ -190,7 +190,8 @@ const AddSurvey = () => {
         SurveyQuota: data.SurveyQuota,
         ClientRate: data.ClientRate,
         preScreener: data.preScreener,
-        uniqueLink: data.uniqueLink
+        uniqueLink: data.uniqueLink,
+        submitType: submitType // "draft" or "submit"
       };
 
       const response = await CreateSurvey(json_data);
@@ -214,7 +215,7 @@ const AddSurvey = () => {
     <>
       <div className="right-content w-100">
         <div className="card shadow border-0 w-100 flex-row p-4">
-          <h5 className="mb-0">Add Survey</h5>
+          <h5 className="mb-0">New Survey</h5>
         </div>
 
         <div className="card shadow border-0 p-3">
@@ -312,8 +313,8 @@ const AddSurvey = () => {
 
               {/* Filled Time */}
               <Grid item xs={4}>
-                <Controller name="filledTime" control={control} rules={{ required: "Filled Time is required" }} render={({ field, fieldState: { error } }) => (
-                  <TextField {...field} label="Filled Time (days)" type="number" fullWidth error={!!error} helperText={error ? error.message : ""} />
+                <Controller name="filledTime" control={control} rules={{ required: "Field Time is required" }} render={({ field, fieldState: { error } }) => (
+                  <TextField {...field} label="Field Time (days)" type="number" fullWidth error={!!error} helperText={error ? error.message : ""} />
                 )} />
               </Grid>
 
@@ -377,7 +378,102 @@ const AddSurvey = () => {
                   <TextField {...field} label="Client Rate" type="number" fullWidth error={!!errors.ClientRate} helperText={errors.ClientRate?.message} />
                 )} />
               </Grid>
+                {/* Project Managers & Sales Managers - unchanged */}
+              <Grid item xs={6}>
+  <Controller
+    name="projectManagers"
+    control={control}
+    rules={{
+      validate: v => v.length > 0 || "Select at least one Project Manager"
+    }}
+    render={({ field }) => {
+      const valueObjects = options.projectManagers.filter(pm =>
+        field.value.includes(pm.id)
+      );
 
+      return (
+        <FormControl fullWidth error={!!errors.projectManagers}>
+          <Autocomplete
+            multiple
+            options={options.projectManagers}
+            getOptionLabel={(option) => option.name}
+            value={valueObjects}
+            onChange={(_, newValue) =>
+              field.onChange(newValue.map(v => v.id))
+            }
+            disableCloseOnSelect
+            renderOption={(props, option, { selected }) => (
+              <li {...props}>
+                <Checkbox checked={selected} sx={{ mr: 1 }} />
+                {option.name}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Project Managers"
+                placeholder="Select Project Managers"
+              />
+            )}
+          />
+          {errors.projectManagers && (
+            <FormHelperText>
+              {errors.projectManagers.message}
+            </FormHelperText>
+          )}
+        </FormControl>
+      );
+    }}
+  />
+</Grid>
+
+              <Grid item xs={6}>
+  <Controller
+    name="salesManagers"
+    control={control}
+    rules={{
+      validate: v => v.length > 0 || "Select at least one Sales Manager"
+    }}
+    render={({ field }) => {
+      const valueObjects = options.salesManagers.filter(sm =>
+        field.value.includes(sm.id)
+      );
+
+      return (
+        <FormControl fullWidth error={!!errors.salesManagers}>
+          <Autocomplete
+            multiple
+            options={options.salesManagers}
+            getOptionLabel={(option) => option.name}
+            value={valueObjects}
+            onChange={(_, newValue) =>
+              field.onChange(newValue.map(v => v.id))
+            }
+            disableCloseOnSelect
+            renderOption={(props, option, { selected }) => (
+              <li {...props}>
+                <Checkbox checked={selected} sx={{ mr: 1 }} />
+                {option.name}
+              </li>
+            )}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Sales Managers"
+                placeholder="Select Sales Managers"
+              />
+            )}
+          />
+          {errors.salesManagers && (
+            <FormHelperText>
+              {errors.salesManagers.message}
+            </FormHelperText>
+          )}
+        </FormControl>
+      );
+    }}
+  />
+</Grid>
               {/* PreScreener */}
               <Grid item xs={4}>
                 <Controller name="preScreener" control={control} render={({ field }) => (
@@ -391,50 +487,29 @@ const AddSurvey = () => {
                   <FormControlLabel control={<Checkbox {...field} checked={field.value} onChange={(e) => field.onChange(e.target.checked)} />} label="Allow Unique Link" />
                 )} />
               </Grid>
-
-              {/* Project Managers & Sales Managers - unchanged */}
-              <Grid item xs={6}>
-                <Typography variant="h6" fontWeight="bold">Project Managers</Typography>
-                {options?.projectManagers?.map((manager) => (
-                  <Controller key={manager.id} name="projectManagers" control={control} defaultValue={[]} render={({ field }) => (
-                    <FormControlLabel control={
-                      <Checkbox {...field}
-                        value={manager.id}
-                        checked={field.value.includes(manager.id)}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          const updated = field.value.includes(value) ? field.value.filter((v) => v !== value) : [...field.value, value];
-                          field.onChange(updated);
-                        }} />
-                    } label={manager.name} />
-                  )} />
-                ))}
-              </Grid>
-
-              <Grid item xs={6}>
-                <Typography variant="h6" fontWeight="bold">Sales Managers</Typography>
-                {options?.salesManagers?.map((manager) => (
-                  <Controller key={manager.id} name="salesManagers" control={control} defaultValue={[]} render={({ field }) => (
-                    <FormControlLabel control={
-                      <Checkbox {...field}
-                        value={manager.id}
-                        checked={field.value.includes(manager.id)}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          const updated = field.value.includes(value) ? field.value.filter((v) => v !== value) : [...field.value, value];
-                          field.onChange(updated);
-                        }} />
-                    } label={manager.name} />
-                  )} />
-                ))}
-              </Grid>
-
             </Grid>
 
             {/* Submit Button */}
-            <Box mt={2}>
-              <Button variant="contained" color="primary" type="submit">Submit</Button>
-            </Box>
+            <Box mt={2} display="flex" gap={2}>
+                <Button
+                  type="submit"
+                  name="draft"
+                  variant="outlined"
+                  color="primary"
+                >
+                  Save as Draft
+                </Button>
+
+                <Button
+                  type="submit"
+                  name="submit"
+                  variant="contained"
+                  color="primary"
+                >
+                  Submit
+                </Button>
+              </Box>
+
           </form>
         </div>
       </div>

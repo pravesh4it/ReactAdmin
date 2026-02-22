@@ -1,4 +1,3 @@
-
 // ============================
 // src/components/MultiSelectsAdmin.jsx
 // ============================
@@ -59,31 +58,36 @@ export default function MultiSelectsAdmin() {
   const [openDialog, setOpenDialog] = useState(false);
   const [editing, setEditing] = useState(false);
 
+  // New state for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
   const { handleSubmit, control, reset, setValue, formState: { errors, isSubmitting } } = useForm({ defaultValues: emptyRow, mode: "onChange" });
 
   // When calling the API, send API-shaped type
-const loadData = useCallback(async () => {
-  try {
-    setLoading(true);
-    setError("");
-    const data = await listMultiSelects(filterType);
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const data = await listMultiSelects(filterType);
 
-    const mapped = (data?.result?.data ?? []).map((d) => ({
-      id: d.id ?? d.Id,
-      name: d.name ?? d.Name,
-      displayName: d.displayName ?? d.DisplayName,
-      isActive: (d.isActive ?? d.IsActive) ?? true,
-      description: d.description ?? d.Description ?? "",
-      // Map API type back to human UI label so the Select shows correctly
-      selectionType: filterType,
-    }));
-    setRows(mapped);
-  } catch (e) {
-    setError(e.message || "Failed to load");
-  } finally {
-    setLoading(false);
-  }
-}, [filterType]);
+      const mapped = (data?.result?.data ?? []).map((d) => ({
+        id: d.id ?? d.Id,
+        name: d.name ?? d.Name,
+        displayName: d.displayName ?? d.DisplayName,
+        isActive: (d.isActive ?? d.IsActive) ?? true,
+        description: d.description ?? d.Description ?? "",
+        // Map API type back to human UI label so the Select shows correctly
+        selectionType: filterType,
+      }));
+      setRows(mapped);
+    } catch (e) {
+      setError(e.message || "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }, [filterType]);
 
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -105,7 +109,7 @@ const loadData = useCallback(async () => {
         return (
           <Stack direction="row" spacing={1}>
             <IconButton size="small" onClick={() => openEdit(row)}><Edit size={16} /></IconButton>
-            <IconButton size="small" onClick={() => onDelete(row)}><Delete size={16} /></IconButton>
+            <IconButton size="small" onClick={() => openDeleteDialog(row)}><Delete size={16} /></IconButton>
           </Stack>
         );
       },
@@ -116,60 +120,79 @@ const loadData = useCallback(async () => {
   const defaultColDef = useMemo(() => ({ sortable: true, resizable: true }), []);
 
   const onQuickFilter = (e) => {
-    gridRef.current?.api.setGridOption('quickFilterText', e.target.value);
+    // ag-grid quick filter API
+    gridRef.current?.api && gridRef.current.api.setQuickFilter(e.target.value);
   };
 
   // Open/Create/Edit handlers
-const openCreate = () => {
-  setEditing(false);
-  reset({ ...emptyRow, selectionType: DEFAULT_SELECTION_TYPES[0] }); // default to first item
-  setOpenDialog(true);
-};
+  const openCreate = () => {
+    setEditing(false);
+    reset({ ...emptyRow, selectionType: DEFAULT_SELECTION_TYPES[0] }); // default to first item
+    setOpenDialog(true);
+  };
 
-const openEdit = (row) => {
-  setEditing(true);
-  // row.selectionType is already mapped to UI via loadData
-  reset(row);
-  setOpenDialog(true);
-};
-  async function onSubmit(values) {
-  try {
-    setError("");
-    const payload = {
-      Id: values.id || undefined,
-      Name: values.name.trim(),
-      DisplayName: values.displayName.trim(),
-      IsActive: !!values.isActive,
-      Description: values.description?.trim() || "",
-      SelectionType: values.selectionType, // <-- API expects e.g. "STATUS"
-    };
+  const openEdit = (row) => {
+    setEditing(true);
+    // row.selectionType is already mapped to UI via loadData
+    reset(row);
+    setOpenDialog(true);
+  };
 
-    if (editing) {
-      await updateMultiSelect(values.id, payload);
-      setSuccess("Updated successfully");
-    } else {
-      const created = await createMultiSelect(payload);
-      setSuccess("Created successfully");
-      if (created?.id || created?.Id) setValue("id", created.id ?? created.Id);
-    }
-    setOpenDialog(false);
-    await loadData();
-  } catch (e) {
-    setError(e.message || "Save failed");
-  }
-}
+  // New: open the confirmation dialog (instead of window.confirm)
+  const openDeleteDialog = (row) => {
+    setDeleteTarget(row);
+    setDeleteDialogOpen(true);
+  };
 
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDeleteTarget(null);
+  };
 
-  async function onDelete(row) {
-    if (!window.confirm(`Delete "${row.displayName || row.name}"?`)) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await deleteMultiSelect(row.id);
+      setDeleting(true);
+      setError("");
+      await deleteMultiSelect(deleteTarget.id);
       setSuccess("Deleted successfully");
+      closeDeleteDialog();
       await loadData();
     } catch (e) {
-      setError(e.message);
+      setError(e.message || "Delete failed");
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  async function onSubmit(values) {
+    try {
+      setError("");
+      const payload = {
+        Id: values.id || undefined,
+        Name: values.name.trim(),
+        DisplayName: values.displayName.trim(),
+        IsActive: !!values.isActive,
+        Description: values.description?.trim() || "",
+        SelectionType: values.selectionType, // <-- API expects e.g. "STATUS"
+      };
+
+      if (editing) {
+        await updateMultiSelect(values.id, payload);
+        setSuccess("Updated successfully");
+      } else {
+        const created = await createMultiSelect(payload);
+        setSuccess("Created successfully");
+        setFilterType(values.selectionType); // switch filter to new type
+        if (created?.id || created?.Id) setValue("id", created.id ?? created.Id);
+      }
+      setOpenDialog(false);
+      await loadData();
+    } catch (e) {
+      setError(e.message || "Save failed");
     }
   }
+
 
   return (
     <Box className="p-6 max-w-7xl mx-auto" style={{ marginTop: "70px" }}>
@@ -219,26 +242,26 @@ const openEdit = (row) => {
         <DialogContent dividers>
           <Stack spacing={2} mt={1}>
 
-                <Controller
-                name="selectionType"
-                control={control}
-                rules={{ required: "Selection Type is required" }}
-                render={({ field }) => (
-                    <FormControl fullWidth>
-                    <InputLabel id="seltype">Selection Type</InputLabel>
-                    <Select
-                        {...field}
-                        labelId="seltype"
-                        label="Selection Type"
-                        disabled={editing}                 // <-- disable on edit
-                    >
-                        {DEFAULT_SELECTION_TYPES.map((t) => (
-                        <MenuItem key={t} value={t}>{t}</MenuItem>
-                        ))}
-                    </Select>
-                    </FormControl>
-                )}
-                />
+            <Controller
+              name="selectionType"
+              control={control}
+              rules={{ required: "Selection Type is required" }}
+              render={({ field }) => (
+                <FormControl fullWidth>
+                  <InputLabel id="seltype">Selection Type</InputLabel>
+                  <Select
+                    {...field}
+                    labelId="seltype"
+                    label="Selection Type"
+                    disabled={editing}                 // <-- disable on edit
+                  >
+                    {DEFAULT_SELECTION_TYPES.map((t) => (
+                      <MenuItem key={t} value={t}>{t}</MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+            />
             {errors.selectionType && <Alert severity="error">{errors.selectionType.message}</Alert>}
 
             <Controller name="name" control={control} rules={{ required: "Name is required", minLength: { value: 2, message: "Min 2 chars" } }} render={({ field }) => (
@@ -266,10 +289,28 @@ const openEdit = (row) => {
         </DialogActions>
       </Dialog>
 
-      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError("")}> 
+      {/* Delete confirmation dialog (replaces window.confirm) */}
+      <Dialog open={deleteDialogOpen} onClose={closeDeleteDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            {deleteTarget
+              ? `Are you sure you want to delete "${deleteTarget.displayName || deleteTarget.name}"? This action cannot be undone.`
+              : "Are you sure you want to delete this item?"}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeDeleteDialog} disabled={deleting}>Cancel</Button>
+          <Button onClick={confirmDelete} variant="contained" color="error" disabled={deleting}>
+            {deleting ? <CircularProgress size={18} /> : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={!!error} autoHideDuration={6000} onClose={() => setError("")}>
         <Alert onClose={() => setError("")} severity="error" sx={{ width: '100%' }}>{error}</Alert>
       </Snackbar>
-      <Snackbar open={!!success} autoHideDuration={2500} onClose={() => setSuccess("")}> 
+      <Snackbar open={!!success} autoHideDuration={2500} onClose={() => setSuccess("")}>
         <Alert onClose={() => setSuccess("")} severity="success" sx={{ width: '100%' }}>{success}</Alert>
       </Snackbar>
     </Box>

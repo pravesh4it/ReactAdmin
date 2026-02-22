@@ -11,6 +11,7 @@ import Alert from "@mui/material/Alert";
 import { AgGridReact } from "ag-grid-react";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
+import { FormControlLabel, Checkbox } from "@mui/material";
 import {
   GetPartners,
   GetPartnersSurvey,
@@ -25,7 +26,9 @@ import {
   UpdateSurveyResponse,
   AddSurveyResponse,
   GetRatesById,
-  AddRates
+  AddRates,
+  UpdatePartnerToSurvey,
+  DeletePartnerToSurvey
 } from "../../api/survey";
 import { useNavigate, useParams } from "react-router-dom";
 import Modal from "@mui/material/Modal";
@@ -33,9 +36,11 @@ import Box from "@mui/material/Box";
 import MenuItem from "@mui/material/MenuItem";
 import { IconButton, Typography } from "@mui/material";
 import { Edit, Delete, PlayCircleOutline } from "@mui/icons-material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import { DatePicker } from "@mui/x-date-pickers";
 import dayjs from "dayjs";
+import CircularProgress from "@mui/material/CircularProgress";
 
 const ViewSurvey = () => {
     const [rowData, setRowData] = useState([]);
@@ -54,7 +59,8 @@ const ViewSurvey = () => {
         disqualificationLink: "",
         quotaLink: "",
         pausedLink: "",
-        securityFailLink: ""
+        securityFailLink: "",
+        preScreenerAllowed: false   // ✅ NEW
     });
     const [surveyLink, setSurveyLink] = useState({
         successLink: "",
@@ -82,6 +88,13 @@ const ViewSurvey = () => {
           });
     const [ipAddress, setIpAddress] = useState("");
     const [loading, setLoading] = useState(false);
+    const [projectLinksOpen, setProjectLinksOpen] = useState(false);
+    const [cloneModalOpen, setCloneModalOpen] = useState(false);
+    const [cloneCount, setCloneCount] = useState(1);
+    const [cloneLoading, setCloneLoading] = useState(false);
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [editingPartnerSurveyId, setEditingPartnerSurveyId] = useState(null);
+
 
     // ---- Partner Rate related state ----
     const [partnerRateModalOpen, setPartnerRateModalOpen] = useState(false);
@@ -91,42 +104,55 @@ const ViewSurvey = () => {
     const [newPartnerRateStartDate, setNewPartnerRateStartDate] = useState(dayjs().startOf("day"));
     const [newPartnerRateNote, setNewPartnerRateNote] = useState("");
     const [partnerRateData, setPartnerRateData] = useState(null); // { activeRate, history }
+    const [status, setStatus] = useState(null);
 
     useEffect(() => {
-        async function fetchData() {
-            try {
-                debugger;
-                const surveyResp = await GetSurvey(id);
-                const response1 = await GetPartnersSurvey(id);
-                const response2 = await GetPartnersOptions();
-                setRowData(response1.result.data);
-                setNewPartnerRateCurrency(surveyResp.result.data.currencyId);
-                setPreScreener(surveyResp.result.data.preScreener);
-                setUniqueLink(surveyResp.result.data.uniqueLink);
-                setSurvey(surveyResp.result.data);
-                setPartners(response2.result.data.clients);
-                const response = await GetOptionsSurvey();
-                setOptions({
-                    salesManagers: response.result.data.sales_managers,
-                    projectManagers: response.result.data.project_managers,
-                    countries: response.result.data.countries,
-                    languages: response.result.data.languages,
-                    clients: response.result.data.clients,
-                    status: response.result.data.status,
-                    currencies: response.result.data.currencies, // Example response for Currency
-                });
-                setSurveyLink({
-                    successLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/success/?uid=xxxx`,
-                    disqualificationLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/disqualify/?uid=xxxx`,
-                    quotaFullLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/quotafull/?uid=xxxx`,
-                    defaultVendorURL: surveyResp.result.data.link
-                });
-            } catch (error) {
-                showSnackbar("Failed to load survey", "error");
-            }
-        }
-        fetchData();
-    }, [id]);
+    let mounted = true;
+
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        const [surveyResp, partnersResp, partnerOpts, optsResp] =
+          await Promise.all([
+            GetSurvey(id),
+            GetPartnersSurvey(id),
+            GetPartnersOptions(),
+            GetOptionsSurvey()
+          ]);
+
+        if (!mounted) return;
+
+        const surveyData = surveyResp?.result?.data;
+        setPreScreener(surveyData?.preScreener ?? false);
+        setSurvey(surveyData);
+        setStatus(surveyData?.status ?? "");
+
+        setRowData(partnersResp?.result?.data ?? []);
+        setPartners(partnerOpts?.result?.data?.clients ?? []);
+
+        setOptions({
+          status: optsResp?.result?.data?.status ?? [],
+          currencies: optsResp?.result?.data?.currencies ?? []
+        });
+        setSurveyLink({
+            successLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/success/?uid=xxxx`,
+            disqualificationLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/disqualify/?uid=xxxx`,
+            quotaFullLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/quotafull/?uid=xxxx`,
+            //defaultVendorURL: survey.result.data.link
+        });
+        
+      } catch (e) {
+        console.error(e);
+        showSnackbar("Failed to load survey", "error");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    load();
+    return () => (mounted = false);
+  }, [id]);
 
     const modifiedData = rowData.map((item) => ({
         ...item,
@@ -144,6 +170,15 @@ const ViewSurvey = () => {
         ), 
         [modifiedData, searchText]
     );
+
+        const handleCopy = async (text) => {
+        try {
+            await navigator.clipboard.writeText(text);
+            showSnackbar("Copied to clipboard!", "success");
+        } catch {
+            showSnackbar("Failed to copy", "error");
+        }
+    };
 
     const showSnackbar = (message, severity) => {
         setSnackbarMessage(message);
@@ -165,7 +200,8 @@ const ViewSurvey = () => {
                 disqualificationLink: response.result.data.disqualificationLink || "",
                 quotaLink: response.result.data.quotaFullLink || "",
                 pausedLink: response.result.data.pausedLink || "",
-                securityFailLink: response.result.data.securityFailLink || ""
+                securityFailLink: response.result.data.securityFailLink || "",
+                preScreenerAllowed: response.result.data.preScreener ?? false // ✅
             });
         } catch (error) {
             showSnackbar("Failed to fetch partner details", "error");
@@ -178,20 +214,33 @@ const ViewSurvey = () => {
     const handleSearch = (e) => {
         setSearchText(e.target.value);
     };
-    const handleAddPartner = () => {
-        setSelectedPartnerId(""); // clear selected partner
-        setPartnerForm({
-            rate: "",
-            quota: "",
-            variable: "",
-            successLink: "",
-            disqualificationLink: "",
-            quotaLink: "",
-            pausedLink: "",
-            securityFailLink: ""
+    const handleCheckboxChange = (e) => {
+    setPartnerForm({
+        ...partnerForm,
+        [e.target.name]: e.target.checked
         });
-        setOpenModal(true);
     };
+
+    const handleAddPartner = () => {
+    setIsEditMode(false);
+    setEditingPartnerSurveyId(null);
+
+    setSelectedPartnerId("");
+    setPartnerForm({
+        rate: "",
+        quota: "",
+        variable: "",
+        successLink: "",
+        disqualificationLink: "",
+        quotaLink: "",
+        pausedLink: "",
+        securityFailLink: "",
+        preScreenerAllowed: false // ✅ NEW
+    });
+
+    setOpenModal(true);
+};
+
     const handleReport = () => {
         navigate(`/survey/view-report/${id}`); // Navigate to details page
     };
@@ -214,47 +263,62 @@ const ViewSurvey = () => {
     };
 
     const handleSavePartner = async () => {
-        const createdById = localStorage.getItem("userid");
-        const json_data = {
-            partnerId: selectedPartnerId,
-            rate: partnerForm.rate,
-            quota: partnerForm.quota,
-            availableVariable: partnerForm.variable,
-            partnerSuccessLink: partnerForm.successLink,
-            partnerDisqualificationLink: partnerForm.disqualificationLink,
-            partnerQuotaLink: partnerForm.quotaLink,
-            pausedLink: partnerForm.pausedLink,
-            securityFailLink: partnerForm.securityFailLink,
-            addedBy: createdById,
-            surveyUuid: id
-        };
-    
-        try {
-            const response = await AddPartnerToSurvey(json_data);
-            if (!response.errors) {
-                showSnackbar("Partner added successfully!", "success");
-                setOpenModal(false);
-                const response2 = await GetPartnersOptions();
-                setPartners(response2.result.data.clients);
-                // refresh partner grid
-                const response3 = await GetPartnersSurvey(id);
-                setRowData(response3.result.data);
-            } else {
-                showSnackbar("Failed to save survey", "error");
-            }
-        } catch (error) {
-            console.error("Error submitting survey:", error);
-            showSnackbar("An unexpected error occurred", "error");
-        }
+    const userId = localStorage.getItem("userid");
+
+    const payload = {
+        partnerSurveyId: editingPartnerSurveyId, // ✅ IMPORTANT
+        partnerId: selectedPartnerId,
+        rate: partnerForm.rate,
+        quota: partnerForm.quota,
+        availableVariable: partnerForm.variable,
+        partnerSuccessLink: partnerForm.successLink,
+        partnerDisqualificationLink: partnerForm.disqualificationLink,
+        partnerQuotaLink: partnerForm.quotaLink,
+        pausedLink: partnerForm.pausedLink,
+        securityFailLink: partnerForm.securityFailLink,
+        preScreenerAllowed: partnerForm.preScreenerAllowed, // ✅ NEW
+        updatedBy: userId
     };
+
+    try {
+        const response = isEditMode
+            ? await UpdatePartnerToSurvey(payload)   // ✅ UPDATE
+            : await AddPartnerToSurvey({            // ✅ ADD
+                ...payload,
+                addedBy: userId,
+                surveyUuid: id
+              });
+
+        if (!response.errors) {
+            showSnackbar(
+                isEditMode ? "Partner updated successfully!" : "Partner added successfully!",
+                "success"
+            );
+
+            setOpenModal(false);
+            setIsEditMode(false);
+            setEditingPartnerSurveyId(null);
+
+            const refreshed = await GetPartnersSurvey(id);
+            setRowData(refreshed.result.data);
+        } else {
+            showSnackbar("Operation failed", "error");
+        }
+    } catch (err) {
+        console.error(err);
+        showSnackbar("Something went wrong", "error");
+    }
+};
+
 
     const handleDelete = async (rowData) => {
         if (window.confirm(`Are you sure you want to delete the partner "${rowData.partnerName}"?`)) {
             try {
-                const response = await DeletePartner(rowData.partnerId); 
-                if (response.success) {
+                const response = await DeletePartnerToSurvey(rowData.id); 
+                debugger;
+                if (response.errors == null) {
                     showSnackbar("Partner deleted successfully!", "success");
-                    setRowData((prev) => prev.filter((row) => row.partnerId !== rowData.partnerId));
+                    setRowData((prev) => prev.filter((row) => row.id !== rowData.id));
                 } else {
                     showSnackbar("Failed to delete partner.", "error");
                 }
@@ -279,19 +343,26 @@ const ViewSurvey = () => {
     };
     
     const handleEdit = (rowData) => {
-        setSelectedPartnerId(rowData.partnerId);
-        setPartnerForm({
-            rate: rowData.rate || "",
-            quota: rowData.quota || "",
-            variable: rowData.variable || "",
-            successLink: rowData.successLink || "",
-            disqualificationLink: rowData.disqualificationLink || "",
-            quotaLink: rowData.quotaLink || "",
-            pausedLink: rowData.pausedLink || "",
-            securityFailLink: rowData.securityFailLink || "",
-        });
-        setOpenModal(true);
-    };
+    setIsEditMode(true);
+    setEditingPartnerSurveyId(rowData.id); // ✅ PartnerSurveyId
+
+    setSelectedPartnerId(rowData.partnerId);
+    debugger;
+    setPartnerForm({
+        rate: rowData.rate || "",
+        quota: rowData.quota || "",
+        variable: rowData.availableVariable || "",
+        successLink: rowData.successLink || "",
+        disqualificationLink: rowData.disqualificationLink || "",
+        quotaLink: rowData.quotaLink || "",
+        pausedLink: rowData.pausedLink || "",
+        securityFailLink: rowData.securityFailLink || "",
+        preScreenerAllowed: rowData.preScreener ?? false // ✅
+    });
+
+    setOpenModal(true);
+};
+
 
     const handleTest = async (rowData) => {
         let ip = "Unable to fetch IP";
@@ -318,40 +389,68 @@ const ViewSurvey = () => {
             respondentIP: ip,
             addedby: createdById,
         };
+        const base_link = rowData.link;
 
-        const response = await AddSurveyResponse(json_data);
+        // create URL object
+        const url = new URL(base_link);
 
-        if (response.errors == null) {
-            const base_link = rowData.link;
-            if (base_link) {
-                const linkWithGuid = base_link.includes("?")
-                    ? `${base_link}&uid=${response.result.data.responseUuid}`
-                    : `${base_link}?uid=${response.result.data.responseUuid}` + `&survey_id=${id}`+ `&passcode=${response.result.data.passcode}`;
-                window.open(linkWithGuid, '_blank', 'noopener,noreferrer');
-            } else {
-                console.error('Base link is not defined.');
-            }
-        } else {
-            console.error('Response UUID is not defined.');
-            showSnackbar("Failed to generate unique link", "error");
-        }
+        // replace uid value
+        url.searchParams.set("uid", crypto.randomUUID());
+
+        // open updated URL
+        window.open(url.toString(), "_blank", "noopener,noreferrer");
+
+        //const response = await AddSurveyResponse(json_data);
+
+        //if (response.errors == null) {
+        //    const base_link = rowData.link;
+        //    if (base_link) {
+        //        const linkWithGuid = base_link.includes("?")
+        //            ? `${base_link}&uid=${response.result.data.responseUuid}`
+        //            : `${base_link}?uid=${response.result.data.responseUuid}` + `&survey_id=${id}`+ `&passcode=${response.result.data.passcode}`;
+        //        window.open(linkWithGuid, '_blank', 'noopener,noreferrer');
+        //    } else {
+        //        console.error('Base link is not defined.');
+        //    }
+        //} else {
+        //    console.error('Response UUID is not defined.');
+        //    showSnackbar("Failed to generate unique link", "error");
+        //}
     };
 
     const handleCloneSurvey = async () => {
-        try {
-          const createdById = localStorage.getItem("userid");
-          const json_data = { id : id, addedBy: createdById };
-          const response = await CloneSurvey(json_data);
-          if (response.errors == null) {
-            showSnackbar("Survey added successfully", "success");
-          } else {
-            showSnackbar("Failed to save survey", "error");
-          }
-        } catch (error) {
-          console.error("Error submitting survey:", error);
-          showSnackbar("An unexpected error occurred", "error");
-        }
+  try {
+    if (!cloneCount || cloneCount < 1) {
+      showSnackbar("Please enter a valid number of clones", "error");
+      return;
+    }
+
+    setCloneLoading(true); // ✅ start spinner
+
+    const createdById = localStorage.getItem("userid");
+    const json_data = {
+      id: id,
+      cloneCount: Number(cloneCount),
+      addedBy: createdById
     };
+
+    const response = await CloneSurvey(json_data);
+
+    if (response.errors == null) {
+      showSnackbar(`Survey cloned ${cloneCount} times successfully`, "success");
+      setCloneModalOpen(false);
+      setCloneCount(1);
+    } else {
+      showSnackbar("Failed to clone survey", "error");
+    }
+  } catch (error) {
+    console.error("Clone error:", error);
+    showSnackbar("An unexpected error occurred", "error");
+  } finally {
+    setCloneLoading(false); // ✅ stop spinner
+  }
+};
+
 
     const handleSaveStatus = async () => {
         try {
@@ -360,6 +459,13 @@ const ViewSurvey = () => {
             const response = await UpdateSurveyStatus(id, json_data);
             if (response.errors == null) {
                 survey.statusId = selectedStatus;
+                // find the display text for the selected id
+                const sel = options?.status?.find(s => s.id === selectedStatus);
+                // set the *text* into your status state
+                setStatus(sel?.name ?? "");
+                // (optional) also store the text on survey for later use
+                //setSurvey(prev => ({ ...prev, statusName: sel?.name ?? prev?.statusName }));
+                //setStatus(selectedStatus);
                 showSnackbar(response.result.data.message, "success");
             } else {
                 showSnackbar("Failed to save survey status", "error");
@@ -459,7 +565,7 @@ const ViewSurvey = () => {
             { headerName: 'ID', field: 'Id', flex: 1, hide: true },
             { headerName: 'Link', field: 'link', flex: 1, hide: true },
             { headerName: 'partnerId', field: 'partnerId', flex: 1, hide: true },
-            { headerName: 'Name', field: 'partnerName', flex: 2 },
+            { headerName: 'Name', field: 'partnerName', flex: 1 },
             {
             headerName: 'Rate',
             field: 'rate',
@@ -488,9 +594,11 @@ const ViewSurvey = () => {
             },
             { headerName: 'Quota', field: 'quota', flex: 1 },
             { headerName: 'Est. IR/ Curr. IR', field: 'ir', flex: 1 },
-            { headerName: 'Last Complete', field: 'ir', flex: 1 },
+            { headerName: 'Last Complete', field: 'lastCompleted', flex: 1 },
             { headerName: 'Drops', field: 'drops', flex: 1 },
-            { headerName: 'Link', field: 'link2', flex: 3 },
+            { headerName: 'Est. LOI/ Curr. LOI', field: 'loi', flex: 1 },
+            {headerName: 'Statics', field: 'statics', flex: 1 },
+            { headerName: 'Link', field: 'link2', flex: 4 },
             {
                 headerName: 'Actions',
                 field: 'actions',
@@ -540,15 +648,24 @@ const ViewSurvey = () => {
         </div>
 
         <Box display="flex" gap={1}>
+            {
+                status==='Invoiced' &&
+            
             <Button variant="contained" color="primary" onClick={handleSurveyInvoice}>
                 Invoice
             </Button>
+            }
             <Button variant="contained" color="primary" onClick={handleSurveyEdit}>
                 Edit Survey
             </Button>
-            <Button variant="contained" color="primary" onClick={handleCloneSurvey}>
+            <Button
+                variant="contained"
+                color="primary"
+                onClick={() => setCloneModalOpen(true)}
+                >
                 Clone
             </Button>
+
             <Button variant="contained" color="primary" onClick={handleReport}>
                 Get Report
             </Button>
@@ -567,7 +684,7 @@ const ViewSurvey = () => {
 </div>
 
                 {
-                    survey && 
+                    survey.surveyName && 
                     <div className="card shadow border-0 p-3">
                         <div className="d-flex justify-content-between align-items-center">
                             <Typography
@@ -577,11 +694,18 @@ const ViewSurvey = () => {
                                 >
                                 Client Details
                                 </Typography>
-                                <Button variant="outlined" onClick={handleOpenStatusModal}>
-                                    Status
-                                </Button>
+                               
+                                  <Box display="flex" gap={1}>
+                                   
+                                        <Button variant="text" onClick={() => setProjectLinksOpen(true)}>
+                                        Project Links
+                                        </Button>
+                                        <Button variant="outlined" onClick={handleOpenStatusModal} style={{ paddingBottom: "4" }}>
+                                        {status}
+                                        </Button>
+                                  </Box>
                             </div>
-                        <table className="table bordered-table">
+                        <table className="table bordered-table borderless-table">
                             <thead>
                                 <tr style={{ background: "#f9f9f9" }}>
                                     <th>Client</th>
@@ -595,6 +719,8 @@ const ViewSurvey = () => {
                                     <th>Quota</th>
                                     <th>Created On</th>
                                     <th>Closed On</th>
+                                    <th>Clicks</th>
+                                    <th>Statics </th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -605,11 +731,13 @@ const ViewSurvey = () => {
                                     <td>{survey.ir} %</td>
                                     <td>{survey.dropsPercentage}</td>
                                     <td>{survey.loi}</td>
-                                    <td>xxxx</td>
+                                    <td>{survey.lastCompleted}</td>
                                     <td>{survey.currencySymbol} {survey.clientRate}</td>
                                     <td>{survey.clientQuota}</td>
                                     <td>{survey.clientLaunchedDate}</td>
                                     <td>{survey.clientEndDate}</td>
+                                    <td>{survey.clicks}</td>
+                                    <td>{survey.statics}</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -657,38 +785,17 @@ const ViewSurvey = () => {
                     columnDefs={columnDefs}
                     pagination={true}
                     paginationPageSize={paginationPageSize}
+                    defaultColDef={{
+                        sortable: false,     // ✅ disables sorting everywhere
+                        resizable: true,
+                        filter: false
+                    }}
                     />
                 </div>
                 </div>
 
-                {
-                    survey && 
-                    <div className="card shadow border-0 p-3">
-                        <Typography
-                            variant="h6"
-                            style={{ fontWeight: "bold", color: "#0c2a66" }}
-                            gutterBottom
-                            >
-                            Projects Links
-                            </Typography>
-                        <table className="table bordered-table">
-                            <tbody>
-                                <tr>
-                                    <td><b>Success Page</b></td>
-                                    <td>{surveyLink.successLink}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>Disqualification Page</b></td>
-                                    <td>{surveyLink.disqualificationLink}</td>
-                                </tr>
-                                <tr>
-                                    <td><b>Quota Full Page</b></td>
-                                    <td>{surveyLink.quotaFullLink}</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                }
+                
+                
             </div>
 
             {/* Add Partner Modal */}
@@ -711,32 +818,44 @@ const ViewSurvey = () => {
                             ✖
                         </Button>
 
-                        <h4>Add Partner</h4>
+                        <h4>{isEditMode ? "Edit Partner" : "Add Partner"}</h4>
                         <TextField
-                            select
-                            label="Partner"
-                            value={selectedPartnerId}
-                            onChange={handlePartnerChange}
-                            fullWidth
-                            margin="normal"
-                            disabled={!!partnerForm.successLink}
+                        select
+                        label="Partner"
+                        value={selectedPartnerId}
+                        onChange={handlePartnerChange}
+                        fullWidth
+                        margin="normal"
+                        disabled={isEditMode}   // ✅ disable only in Edit Partner
                         >
-                            {partners && partners.map((partner) => (
-                                <MenuItem key={partner.id} value={partner.id}>
-                                    {partner.name}
-                                </MenuItem>
-                            ))}
+                        {partners && partners.map((partner) => (
+                            <MenuItem key={partner.id} value={partner.id}>
+                            {partner.name}
+                            </MenuItem>
+                        ))}
                         </TextField>
                         <TextField label="Rate" name="rate" value={partnerForm.rate} onChange={handleInputChange} fullWidth margin="normal" />
                         <TextField label="Quota" name="quota" value={partnerForm.quota} onChange={handleInputChange} fullWidth margin="normal" />
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                    checked={partnerForm.preScreenerAllowed}
+                                    onChange={handleCheckboxChange}
+                                    name="preScreenerAllowed"
+                                    color="primary"
+                                />
+                            }
+                            label="Allow Prescreener Questions for this Partner"
+                        />
+
                         <TextField label="Partner Success Link" name="successLink" value={partnerForm.successLink} onChange={handleInputChange} fullWidth margin="normal" required />
                         <TextField label="Partner Disqualification Link" name="disqualificationLink" value={partnerForm.disqualificationLink} onChange={handleInputChange} fullWidth margin="normal" required />
                         <TextField label="Partner Quota Link" name="quotaLink" value={partnerForm.quotaLink} onChange={handleInputChange} fullWidth margin="normal" required />
                         <TextField label="Paused Link" name="pausedLink" value={partnerForm.pausedLink} onChange={handleInputChange} fullWidth margin="normal" />
                         <TextField label="Security Fail Link" name="securityFailLink" value={partnerForm.securityFailLink} onChange={handleInputChange} fullWidth margin="normal" />
-                        <Button variant="contained" color="primary" onClick={handleSavePartner} sx={{ mt: 2 }}>
-                            Save Partner
-                        </Button>
+                        <Button variant="contained" onClick={handleSavePartner}>
+    {isEditMode ? "Update Partner" : "Save Partner"}
+</Button>
                     </Box>
                 </Modal>
             </div>
@@ -838,6 +957,129 @@ const ViewSurvey = () => {
                 </Box>
                 </Box>
         </Modal>
+        {/* Project Links Modal */}
+<Modal open={projectLinksOpen} onClose={() => setProjectLinksOpen(false)}>
+  <Box
+    sx={{
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: 600,
+      bgcolor: "background.paper",
+      boxShadow: 24,
+      p: 3,
+      borderRadius: 2,
+      maxHeight: "80vh",
+      overflowY: "auto",
+    }}
+  >
+    <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+      <Typography variant="h6">Project Links</Typography>
+      <Button onClick={() => setProjectLinksOpen(false)} sx={{ minWidth: "auto" }}>✖</Button>
+    </Box>
+
+    <Box display="grid" gap={2}>
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>Success Page</Typography>
+        <Box display="flex" gap={1}>
+          <TextField fullWidth size="small" value={surveyLink.successLink} InputProps={{ readOnly: true }} />
+          <IconButton onClick={() => handleCopy(surveyLink.successLink)} title="Copy">
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>Disqualification Page</Typography>
+        <Box display="flex" gap={1}>
+          <TextField fullWidth size="small" value={surveyLink.disqualificationLink} InputProps={{ readOnly: true }} />
+          <IconButton onClick={() => handleCopy(surveyLink.disqualificationLink)} title="Copy">
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>Quota Full Page</Typography>
+        <Box display="flex" gap={1}>
+          <TextField fullWidth size="small" value={surveyLink.quotaFullLink} InputProps={{ readOnly: true }} />
+          <IconButton onClick={() => handleCopy(surveyLink.quotaFullLink)} title="Copy">
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {surveyLink?.defaultVendorURL ? (
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>Default Vendor URL</Typography>
+          <Box display="flex" gap={1}>
+            <TextField fullWidth size="small" value={surveyLink.defaultVendorURL} InputProps={{ readOnly: true }} />
+            <IconButton onClick={() => handleCopy(surveyLink.defaultVendorURL)} title="Copy">
+              <ContentCopyIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
+      ) : null}
+    </Box>
+
+    <Box mt={3} display="flex" justifyContent="flex-end">
+      <Button variant="contained" onClick={() => setProjectLinksOpen(false)}>Close</Button>
+    </Box>
+  </Box>
+</Modal>
+<Modal open={cloneModalOpen} onClose={() => setCloneModalOpen(false)}>
+  <Box
+    sx={{
+      position: "absolute",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      width: 400,
+      bgcolor: "background.paper",
+      boxShadow: 24,
+      p: 4,
+      borderRadius: 2,
+    }}
+  >
+    <Typography variant="h6" gutterBottom>
+      Clone Survey
+    </Typography>
+
+    <TextField
+      label="Number of Clones"
+      type="number"
+      fullWidth
+      value={cloneCount}
+      onChange={(e) => setCloneCount(e.target.value)}
+      inputProps={{ min: 1, max: 20 }}
+      sx={{ mt: 2 }}
+    />
+
+    <Box mt={3} display="flex" justifyContent="flex-end" gap={1}>
+  <Button
+    onClick={() => setCloneModalOpen(false)}
+    disabled={cloneLoading}
+  >
+    Cancel
+  </Button>
+
+  <Button
+    variant="contained"
+    onClick={handleCloneSurvey}
+    disabled={cloneLoading}
+    startIcon={
+      cloneLoading ? <CircularProgress size={20} color="inherit" /> : null
+    }
+  >
+    {cloneLoading ? "Cloning..." : "Clone"}
+  </Button>
+</Box>
+
+  </Box>
+</Modal>
+
+
 
             <Snackbar
                 open={snackbarOpen}

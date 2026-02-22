@@ -288,6 +288,36 @@ export async function AddPartnerToSurvey(data){
         return err;
     }
 }
+export async function UpdatePartnerToSurvey(data){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/update-partner/`;
+        console.log(URL);
+        debugger
+        let headers = {};
+        let result = await axiosCall(URL,'post', headers, data, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
+export async function DeletePartnerToSurvey(id){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/survey-partner/`+id;
+        console.log(URL);
+        debugger
+        let headers = {};
+        let result = await axiosCall(URL,'delete', headers, {}, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
 export async function DeletePartner(id){
     try {
         let URL = `${process.env.REACT_APP_API_URL}/client/`+id;
@@ -470,6 +500,21 @@ export async function AddRates(type, id, data){
         console.log(URL);
         let headers = {};
         let result = await axiosCall(URL,'post', headers, data, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
+export async function DeleteSurveyPreScreening(id){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/delete-prescreening-question/`+id;
+        console.log(URL);
+        debugger
+        let headers = {};
+        let result = await axiosCall(URL,'delete', headers, {}, false);
         console.log(result);
         return result;
     }

@@ -190,13 +190,7 @@ export default function SurveyDashboard() {
           Survey Dashboard
         </Typography>
         <Stack direction="row" spacing={1}>
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => navigate(`/survey/add`)}
-          >
-            New Survey
-          </Button>
+          
           <Tooltip title="Refresh">
             <IconButton onClick={handleRefresh} disabled={loading}>
               <RefreshIcon />

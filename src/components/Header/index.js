@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import logo from "../../assets/images/logo.png";
+import logo from "../../assets/images/IconOnly_Transparent_NoBuffer.png";
 import Button from "@mui/material/Button";
 import {
   MdMenuOpen,
@@ -9,6 +9,7 @@ import {
 
 import { MyContext } from "../../App";
 import Logout from "@mui/icons-material/Logout";
+import { Margin } from "@mui/icons-material";
 
 const Header = () => {
   const {
@@ -55,7 +56,7 @@ const Header = () => {
               </Button>
             </div>
 
-            <Link to="/" className="d-flex align-items-center logo">
+            <Link to="/dashboard" className="d-flex align-items-center logo">
               <img src={logo} alt="logo" />
             </Link>
             <div className="ms-2 d-none d-md-block">
@@ -76,7 +77,13 @@ const Header = () => {
 
           {/* Right Side */}
           <div className="col-6 col-sm-7 d-flex align-items-center justify-content-end part3">
+            <Link to="/survey/add">
+                <Button variant="contained" color="primary" size="medium" style={{ marginRight: "16px" }}>
+              + New Survey
+            </Button>
+              </Link>
             {!isLogin ? (
+              
               <Link to="/">
                 <Button className="btn-blue btn-lg btn-round">Sign In</Button>
               </Link>

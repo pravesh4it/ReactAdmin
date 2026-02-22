@@ -81,6 +81,30 @@ const RecontactSurvey = () => {
     fetchOptions();
   }, []);
 
+  // --- New: download template function ---
+  const downloadTemplate = () => {
+    // Define CSV header and an example row. Adjust columns as per your backend requirements.
+    const header = ["respondentId", "email", "firstName", "lastName", "phone", "notes"];
+    const example = ["", "jane.doe@example.com", "Jane", "Doe", "1234567890", "optional notes"];
+
+    // Build CSV content
+    const rows = [header, example];
+    const csvContent = rows.map(r => r.map(cell =>
+      // escape double quotes and wrap in quotes if needed
+      (`"${String(cell).replace(/"/g, '""')}"`)
+    ).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "recontact_template.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   const onSubmit = async (data) => {
     try {
       const createdById = localStorage.getItem("userid");
@@ -159,11 +183,22 @@ const RecontactSurvey = () => {
                   />
                 </Grid>
 
-                {/* File Upload */}
+                {/* File Upload + Download Template */}
                 <Grid item xs={12}>
                   <Typography variant="body1" sx={{ mb: 1 }}>
                     Upload CSV File (Optional)
                   </Typography>
+
+                  {/* Download template button */}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={downloadTemplate}
+                    sx={{ mr: 2, mb: 1 }}
+                  >
+                    Download Template
+                  </Button>
+
                   <input
                     type="file"
                     accept=".csv"

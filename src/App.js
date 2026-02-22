@@ -46,6 +46,15 @@ dayjs.extend(timezone);
 const MyContext = createContext();
 const isAuthenticated = () => localStorage.getItem("token") !== null;
 
+const VERSION_URL = '/version.json';
+
+async function fetchVersion() {
+  const res = await fetch(`${VERSION_URL}?t=${Date.now()}`, { cache: 'no-store' });
+  if (!res.ok) throw new Error('version fetch failed');
+  const data = await res.json();
+  return data.version;
+}
+
 function App() {
   const [isToggleSidebar, setIsToggleSidebar] = useState(false);
   const [isOpenNav, setIsOpenNav] = useState(false);
@@ -67,6 +76,31 @@ function App() {
       localStorage.setItem("theme", "light");
     }
   }, [theme]);
+  // 🔄 Auto-reload when a new deployment is detected
+  useEffect(() => {
+    let timerId;
+    const KEY = 'appVersion';
+
+    const check = async () => {
+      try {
+        const latest = await fetchVersion();
+        const current = localStorage.getItem(KEY);
+        if (current && current !== latest) {
+          localStorage.setItem(KEY, latest);
+          // Reload to pick new assets and code
+          window.location.reload();
+          return;
+        }
+        if (!current) localStorage.setItem(KEY, latest);
+      } catch (e) {
+        // Optional: console.warn(e);
+      }
+    };
+
+    check();                       // run on mount
+    timerId = setInterval(check, 5 * 60 * 1000); // then every 5 minutes
+    return () => clearInterval(timerId);
+  }, []);
 
   const values = {
     isToggleSidebar,

@@ -171,37 +171,21 @@ const InvoicePage = () => {
       // Call backend API - adapt to your CreateInvoice wrapper's contract
       // Expected: CreateInvoice(payload) => { result: { status: 200, data: { invoiceId, invoiceNumber } } }
       const resp = await CreateInvoice(payload);
-
-      // Try to detect common success shapes
-      const status = resp?.result?.status ?? resp?.status ?? resp?.statusCode;
-      const data = resp?.result?.data ?? resp?.data ?? resp;
-
-      if ((status === 200 || status === 201 || status === undefined) && data) {
+        debugger;
+      if (!resp.errors) {
         setSnackbar({ open: true, message: "Invoice created successfully", severity: "success" });
-
-        // If backend returns an invoice id/number, navigate to invoice detail page
-        const invoiceId = data.invoiceId ?? data.id ?? data.invoiceId;
-        const invoiceNumber = data.invoiceNumber ?? data.invoiceNo ?? data.invoiceNumber;
-
-        // navigate to invoice detail if route exists, else to invoice list
-        if (invoiceId) {
-          navigate(`/invoices/${invoiceId}`);
-        } else if (invoiceNumber) {
-          navigate(`/invoices/number/${encodeURIComponent(invoiceNumber)}`);
-        } else {
           // fallback: go to invoice list page
-          navigate("/invoices");
-        }
+          navigate("/survey/invoices-list/"+sid);
+        
       } else {
         // try to read error message
-        const errMsg = resp?.error?.message ?? resp?.message ?? "Failed to create invoice";
-        setSnackbar({ open: true, message: errMsg, severity: "error" });
+        setSnackbar({ open: true, message: "Failed to create invoice", severity: "error" });
       }
     } catch (err) {
       console.error("CreateInvoice error:", err);
       // if server returns structured error you can display it
-      const serverMsg = err?.response?.data?.message ?? err?.message ?? "Failed to create invoice";
-      setSnackbar({ open: true, message: serverMsg, severity: "error" });
+      //const serverMsg = err?.response?.data?.message ?? err?.message ?? "Failed to create invoice";
+      setSnackbar({ open: true, message: "Failed to create invoice", severity: "error" });
     } finally {
       setSubmitting(false);
     }
@@ -387,7 +371,7 @@ const InvoicePage = () => {
           disabled={submitting}
           startIcon={submitting ? <CircularProgress size={18} color="inherit" /> : null}
         >
-          {submitting ? "Sending..." : "Send Invoice"}
+          {submitting ? "Submitting..." : "Submit"}
         </Button>
       </Box>
 

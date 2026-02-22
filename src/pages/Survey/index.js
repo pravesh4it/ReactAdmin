@@ -26,8 +26,11 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
-import { DeleteSurvey, GetOptionsSurvey, GetSurveys } from "../../api/survey";
+import { DeleteSurvey, GetOptionsSurvey, GetSurveys, UpdateSurveyStatus } from "../../api/survey";
+
+import { FormControl, InputLabel } from "@mui/material";
 import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { Sort } from "@mui/icons-material";
 
 const Surveys = () => {
   const [rowData, setRowData] = useState([]);
@@ -39,6 +42,9 @@ const Surveys = () => {
   const [snackbarMessage, setSnackbarMessage] = useState("");
   const [snackbarSeverity, setSnackbarSeverity] = useState("success");
   const [paginationPageSize] = useState(100);
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [statusRow, setStatusRow] = useState(null);            // the row being edited
+  const [statusSelectionId, setStatusSelectionId] = useState(""); // selected status id
 
   const navigate = useNavigate();
 
@@ -46,8 +52,8 @@ const Surveys = () => {
     window.scrollTo(0, 0);
     const fetchData = async () => {
       try {
-        // const response = await GetOptionsSurvey();
-        // setOptions({ status: response.result.data.status });
+        const responseOptions = await GetOptionsSurvey();
+        setOptions({ status: responseOptions.result.data.status });
 
         const response = await GetSurveys();
         setRowData(response.result.data);
@@ -101,16 +107,37 @@ const Surveys = () => {
     setDeleteDialogOpen(false);
   };
 
-  const handleStatusChange = (id, currentStatus) => {
-    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
-    // Call an API here if backend supports status updates
-    showSnackbar(`Survey status changed to ${newStatus}`, "success");
-    setRowData((prev) =>
-      prev.map((survey) =>
-        survey.id === id ? { ...survey, status: newStatus } : survey
-      )
+  
+const openStatusDialog = (row) => {
+  setStatusRow(row);
+  // if the row has a status NAME, map it to id from options; else assume it's already an id
+  const found = options.status.find(s => s.name === row.status || s.id === row.status);
+  setStatusSelectionId(found ? found.id : "");
+  setStatusDialogOpen(true);
+};
+
+const handleStatusSave = async () => {
+  if (!statusRow) return;
+  const sel = options.status.find(s => s.id === statusSelectionId);
+  const createdById = localStorage.getItem("userid");
+  try {
+    // Call backend to persist (if your API expects this signature)
+    await UpdateSurveyStatus(statusRow.id, { StatusId: statusSelectionId, createdById });
+    // Update grid locally with the *name/text*
+    setRowData(prev =>
+      prev.map(r => (r.id === statusRow.id ? { ...r, status: sel?.name ?? r.status } : r))
     );
-  };
+    showSnackbar("Status updated", "success");
+  } catch (e) {
+    console.error(e);
+    showSnackbar("Failed to update status", "error");
+  } finally {
+    setStatusDialogOpen(false);
+    setStatusRow(null);
+    setStatusSelectionId("");
+  }
+};
+
 
   const columnDefs = [
     {
@@ -118,19 +145,21 @@ const Surveys = () => {
       valueGetter: "node.rowIndex + 1",
       flex: 0.5,
       minWidth: 80,
+      hide: true
     },
     {
-      headerName: "Name",
+      headerName: "Survey Id",
       field: "name",
       flex: 2,
+      Sortable: false,
       cellRenderer: (params) => (
         <Button color="primary" onClick={() => handleSurveyClick(params.data.id)}>
           {params.value}
         </Button>
       ),
     },
-    { headerName: "Survey Id", field: "id", flex: 1, hide: true },
-    { headerName: "Title", field: "title", flex: 2 },
+    { headerName: "Id", field: "id", flex: 1, hide: true },
+    { headerName: "Title", field: "title", flex: 2, Sortable: false },
     { headerName: "Client", field: "client", flex: 1 },
     { headerName: "Country", field: "country", flex: 1 },
     { headerName: "Language", field: "language", flex: 1, hide: true},
@@ -140,7 +169,6 @@ const Surveys = () => {
     { headerName: "Est IR/Cr IR", field: "ir", flex: 1 },
     { headerName: "Est LOI/Cr LOI", field: "loi", flex: 1 },
     { headerName: "Last Completed", field: "lastCompleted", flex: 1 },
-    { headerName: "Status", field: "status", flex: 1 },
     { headerName: "CPI", field: "cpi", flex: 1 },
     {
       headerName: "Launched Date",
@@ -149,17 +177,34 @@ const Surveys = () => {
       valueFormatter: (params) => dayjs(params.value).format("DD MMM, YYYY"),
       hide: true
     },
-    { headerName: "Vendors", field: "vendorsCount", flex: 1 },
-    { headerName: "Clones", field: "cloneCount", flex: 1 },
+    { headerName: "Vendors", field: "vendorsCount", flex: 0.5 },
+    { headerName: "Clones", field: "cloneCount", flex: 0.5 },
+    {
+      headerName: "Status",
+      field: "status",
+      flex: 1,
+      cellRenderer: (params) => (
+        <Button
+          color="primary"
+          onClick={() => openStatusDialog(params.data)}
+        >
+          {params.value}
+        </Button>
+      ),
+    },
+    { headerName: "Statics", field: "statics", flex: 1 },
     {
       headerName: "Actions",
       field: "actions",
       flex: 1.5,
       cellRenderer: (params) => (
         <div style={{ display: "flex", gap: "10px" }}>
-          <IconButton color="primary" onClick={() => handleEditSurvey(params.data.id)}>
-            <EditIcon />
-          </IconButton>
+          {
+            
+            <IconButton color="primary" onClick={() => handleEditSurvey(params.data.id)}>
+              <EditIcon />
+            </IconButton>
+          }
           <IconButton color="error" onClick={() => handleDeleteClick(params.data.id)}>
             <DeleteIcon />
           </IconButton>
@@ -195,9 +240,7 @@ const Surveys = () => {
               onChange={(e) => setSearchText(e.target.value)}
               style={{ marginRight: 16 }}
             />
-            <Button variant="contained" color="primary" onClick={handleAddSurvey}>
-              Add Survey
-            </Button>
+            
           </div>
 
           <div className="ag-theme-quartz">
@@ -206,6 +249,11 @@ const Surveys = () => {
               rowData={filteredData}
               columnDefs={columnDefs}
               pagination={true}
+              defaultColDef={{
+                sortable: false,     // ✅ disables sorting everywhere
+                resizable: true,
+                filter: false
+              }}
               paginationPageSize={paginationPageSize}
             />
           </div>
@@ -228,6 +276,34 @@ const Surveys = () => {
           </Button>
         </DialogActions>
       </Dialog>
+      <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} fullWidth maxWidth="xs">
+  <DialogTitle>Change Status</DialogTitle>
+  <DialogContent>
+    <DialogContentText sx={{ mb: 2 }}>
+      Select a new status for <b>{statusRow?.name}</b>.
+    </DialogContentText>
+    <FormControl fullWidth>
+      <InputLabel id="status-select-label">Status</InputLabel>
+      <Select
+        labelId="status-select-label"
+        label="Status"
+        value={statusSelectionId}
+        onChange={(e) => setStatusSelectionId(e.target.value)}
+      >
+        {options.status.map((s) => (
+          <MenuItem key={s.id} value={s.id}>{s.name}</MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+    <Button variant="contained" onClick={handleStatusSave} disabled={!statusSelectionId}>
+      Save
+    </Button>
+  </DialogActions>
+</Dialog>
+
 
       <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={handleSnackbarClose}>
         <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: "100%" }}>
