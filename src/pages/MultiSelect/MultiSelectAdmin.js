@@ -154,10 +154,15 @@ export default function MultiSelectsAdmin() {
     try {
       setDeleting(true);
       setError("");
-      await deleteMultiSelect(deleteTarget.id);
-      setSuccess("Deleted successfully");
-      closeDeleteDialog();
-      await loadData();
+      const response = await deleteMultiSelect(deleteTarget.id);
+      if (response?.errors) {
+        setError(response.errors.message || "Delete failed");
+      }
+      else {
+        setSuccess("Deleted successfully");
+        closeDeleteDialog();
+        await loadData();
+      }
     } catch (e) {
       setError(e.message || "Delete failed");
     } finally {

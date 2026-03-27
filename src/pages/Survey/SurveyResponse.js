@@ -51,7 +51,7 @@ const SurveyResponse = () => {
         debugger;
         if (response?.errors == null) {
           const redirectLink = response.result.data?.redirectLink || null;
-          showSnackbar("Survey response updated successfully", "success");
+          //showSnackbar("Survey response updated successfully", "success");
           setResponseType(response?.result.data?.status || "disqualify");
           if (redirectLink) {
             window.location.href = redirectLink;

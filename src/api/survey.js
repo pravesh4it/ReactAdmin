@@ -213,6 +213,22 @@ export async function CreateQuiz(data){
         return err;
     }
 }
+export async function UpdateSurveyPreScreening(data){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/update-prescreener/`;
+        console.log(URL);
+        debugger
+        let headers = {};
+        let result = await axiosCall(URL,'put', headers, data, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
+
 export async function CloneSurvey(data){
     try {
         let URL = `${process.env.REACT_APP_API_URL}/survey/clone-survey/`;

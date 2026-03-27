@@ -60,7 +60,9 @@ const ViewSurvey = () => {
         quotaLink: "",
         pausedLink: "",
         securityFailLink: "",
-        preScreenerAllowed: false   // ✅ NEW
+        preScreenerAllowed: false,
+        showInstruction: false,
+        instructionText: ""
     });
     const [surveyLink, setSurveyLink] = useState({
         successLink: "",
@@ -106,6 +108,7 @@ const ViewSurvey = () => {
     const [partnerRateData, setPartnerRateData] = useState(null); // { activeRate, history }
     const [status, setStatus] = useState(null);
 
+
     useEffect(() => {
     let mounted = true;
 
@@ -125,6 +128,7 @@ const ViewSurvey = () => {
 
         const surveyData = surveyResp?.result?.data;
         setPreScreener(surveyData?.preScreener ?? false);
+        setUniqueLink(surveyData?.uniqueLink ?? false);
         setSurvey(surveyData);
         setStatus(surveyData?.status ?? "");
 
@@ -187,27 +191,32 @@ const ViewSurvey = () => {
     };
 
     const handlePartnerChange = async (event) => {
-        const partnerId = event.target.value;
-        setSelectedPartnerId(partnerId);
-        try {
-            const response = await GetPartnerDetails(partnerId);
-            setPartnerData(response.result.data);
-            setPartnerForm({
-                rate: response.result.data.rate || "",
-                quota: response.result.data.quota || "",
-                variable: response.result.data.c_Variable || "",
-                successLink: response.result.data.successLink || "",
-                disqualificationLink: response.result.data.disqualificationLink || "",
-                quotaLink: response.result.data.quotaFullLink || "",
-                pausedLink: response.result.data.pausedLink || "",
-                securityFailLink: response.result.data.securityFailLink || "",
-                preScreenerAllowed: response.result.data.preScreener ?? false // ✅
-            });
-        } catch (error) {
-            showSnackbar("Failed to fetch partner details", "error");
-        }
-    };
+    const partnerId = event.target.value;
+    setSelectedPartnerId(partnerId);
 
+    try {
+        const response = await GetPartnerDetails(partnerId);
+        const data = response.result.data;
+
+        setPartnerForm((prev) => ({
+            ...prev,
+            rate: data.rate || "",
+            quota: data.quota || "",
+            variable: data.c_Variable || "",
+            successLink: data.successLink || "",
+            disqualificationLink: data.disqualificationLink || "",
+            quotaLink: data.quotaFullLink || "",
+            pausedLink: data.pausedLink || "",
+            securityFailLink: data.securityFailLink || "",
+            preScreenerAllowed: data.preScreener ?? false,
+            showInstruction: data.showInstruction ?? false,
+            instructionText: data.instructionText || ""
+        }));
+
+    } catch (error) {
+        showSnackbar("Failed to fetch partner details", "error");
+    }
+};
     const handleInputChange = (e) => {
         setPartnerForm({ ...partnerForm, [e.target.name]: e.target.value });
     };
@@ -220,6 +229,8 @@ const ViewSurvey = () => {
         [e.target.name]: e.target.checked
         });
     };
+ 
+
 
     const handleAddPartner = () => {
     setIsEditMode(false);
@@ -235,7 +246,9 @@ const ViewSurvey = () => {
         quotaLink: "",
         pausedLink: "",
         securityFailLink: "",
-        preScreenerAllowed: false // ✅ NEW
+        preScreenerAllowed: false,
+        showInstruction: false,
+        instructionText: ""
     });
 
     setOpenModal(true);
@@ -264,7 +277,7 @@ const ViewSurvey = () => {
 
     const handleSavePartner = async () => {
     const userId = localStorage.getItem("userid");
-
+        debugger;
     const payload = {
         partnerSurveyId: editingPartnerSurveyId, // ✅ IMPORTANT
         partnerId: selectedPartnerId,
@@ -277,8 +290,12 @@ const ViewSurvey = () => {
         pausedLink: partnerForm.pausedLink,
         securityFailLink: partnerForm.securityFailLink,
         preScreenerAllowed: partnerForm.preScreenerAllowed, // ✅ NEW
-        updatedBy: userId
+        updatedBy: userId,
+        showInstruction: partnerForm.showInstruction, // ✅ NEW
+        instructionText: partnerForm.instructionText // ✅ NEW
     };
+
+
 
     try {
         const response = isEditMode
@@ -357,7 +374,9 @@ const ViewSurvey = () => {
         quotaLink: rowData.quotaLink || "",
         pausedLink: rowData.pausedLink || "",
         securityFailLink: rowData.securityFailLink || "",
-        preScreenerAllowed: rowData.preScreener ?? false // ✅
+        preScreenerAllowed: rowData.preScreener ?? false, // ✅
+        showInstruction: rowData.showInstruction ?? false, // ✅
+        instructionText: rowData.instructionText || "" // ✅
     });
 
     setOpenModal(true);
@@ -593,11 +612,14 @@ const ViewSurvey = () => {
             cellStyle: { textAlign: "right" }
             },
             { headerName: 'Quota', field: 'quota', flex: 1 },
+            
+            
             { headerName: 'Est. IR/ Curr. IR', field: 'ir', flex: 1 },
-            { headerName: 'Last Complete', field: 'lastCompleted', flex: 1 },
-            { headerName: 'Drops', field: 'drops', flex: 1 },
             { headerName: 'Est. LOI/ Curr. LOI', field: 'loi', flex: 1 },
-            {headerName: 'Statics', field: 'statics', flex: 1 },
+            { headerName: 'Drop out (%)', field: 'drops', flex: 1 },
+             {headerName: 'Statistics', field: 'statics', flex: 1 },
+            { headerName: 'Last Complete', field: 'lastCompleted', flex: 1 },
+           
             { headerName: 'Link', field: 'link2', flex: 4 },
             {
                 headerName: 'Actions',
@@ -847,7 +869,29 @@ const ViewSurvey = () => {
                             }
                             label="Allow Prescreener Questions for this Partner"
                         />
-
+                        <FormControlLabel
+                            control={
+                                <Checkbox
+                                checked={partnerForm.showInstruction}
+                                onChange={handleCheckboxChange}
+                                name="showInstruction"
+                                color="primary"
+                                />
+                            }
+                            label="Show Instruction"
+                            />
+                        {partnerForm.showInstruction && (
+                        <TextField
+                            label="Instruction"
+                            multiline
+                            rows={4}
+                            fullWidth
+                            name="instructionText"
+                            value={partnerForm.instructionText}
+                            onChange={handleInputChange}
+                            margin="normal"
+                        />
+                        )}
                         <TextField label="Partner Success Link" name="successLink" value={partnerForm.successLink} onChange={handleInputChange} fullWidth margin="normal" required />
                         <TextField label="Partner Disqualification Link" name="disqualificationLink" value={partnerForm.disqualificationLink} onChange={handleInputChange} fullWidth margin="normal" required />
                         <TextField label="Partner Quota Link" name="quotaLink" value={partnerForm.quotaLink} onChange={handleInputChange} fullWidth margin="normal" required />

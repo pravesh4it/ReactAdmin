@@ -11,7 +11,7 @@ import timezone from "dayjs/plugin/timezone";
 
 // pages
 import LoginForm from "./pages/Login/index1";
-import SignUp from "./pages/SignUp";
+import ResetPassword from "./pages/SignUp/index";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Partners from "./pages/Partners";
@@ -39,6 +39,8 @@ import CountryLanguageAdmin from "./pages/Country/CountryLanguageAdmin";
 import CountriesAdmin from "./pages/Country/CountryAdmin";
 import InvoicePage from "./pages/Survey/Invoice";
 import InvoiceListForSurvey from "./pages/Survey/InvoicesList";
+import ForgotPasswordForm  from "./pages/Login/forgot-password";
+import SurveyPage from "./pages/Survey/SurveyPage";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -122,9 +124,10 @@ function App() {
             {/* 👇 Routes without Header & Sidebar */}
             <Route element={<NoLayout />}>
               <Route path="/" element={<LoginForm />} />
-              <Route path="/signUp" element={<SignUp />} />
-              <Route path="/survey/survey-start" element={<SurveyQuestions />} />
+              <Route path="/resetpassword/:code" element={<ResetPassword />} />
+              <Route path="/survey/survey-start" element={<SurveyPage />} />
               <Route path="/survey/survey-response/:type" element={<SurveyResponse />} />
+              <Route path="/forgot-password" element={<ForgotPasswordForm />} />
             </Route>
 
             {/* 👇 Routes with Header & Sidebar */}
@@ -159,5 +162,10 @@ function App() {
   );
 }
 
+window.addEventListener("unhandledrejection", function (event) {
+  if (event.reason && event.reason.message?.includes("Timeout")) {
+    event.preventDefault();
+  }
+});
 export default App;
 export { MyContext };

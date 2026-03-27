@@ -1,45 +1,63 @@
 import axios from "axios";
 //Error codes for error messages in the form
 
-
-export async function axiosCall(Url, Type, Headers, Data, isLoading = false) {
+export async function axiosCall(Url, Type, Headers = {}, Data, isLoading = false) {
     const loadingElement = document.getElementById('loading-indicator');
-    if (isLoading) {
+
+    if (isLoading && loadingElement) {
         loadingElement.style.display = 'block';
     }
+
     let Response_Result = '';
     let errors = null;
+    debugger;
     try {
-        if (localStorage.loginState) {
-            const t = localStorage.token;
-            Headers.Authorization = "Bearer " + t;
+        if (localStorage.getItem("loginState")) {
+            const token = localStorage.getItem("token");
+            Headers.Authorization = "Bearer " + token;
         }
-        let res = await axios({
+
+        const res = await axios({
             method: Type,
             url: Url,
             headers: Headers,
             data: Data
         });
+
         Response_Result = res;
-        console.log(res);
 
-    }
-    catch (err) {
-        console.log('axiosCall', err);
-        if (err?.code === "ERR_NETWORK") {
-            setTimeout(() => { window.location.href = '/'; }, 100);
+    } catch (err) {
+debugger;
+        if (err.response) {
+            const status = err.response.status;
 
+            if (status === 401) {
+                localStorage.clear();
+                window.location.href = "/";
+            }
+
+            if (status === 403) {
+                //errors
+                debugger;
+                //alert("You do not have permission to perform this action.");
+                err.message = "You do not have permission to perform this action.";
+                //err.response.data = { message: "You do not have permission to perform this action." };
+                //response.errors.message
+            }
+
+        } else if (err.code === "ERR_NETWORK") {
+            alert("Network error. Server might be unreachable.");
         }
-        else if (err.response?.status === 401 && err.response?.statusText === "Unauthorized") {
-            setTimeout(() => { window.location.href = '/'; }, 100);
-        }
+
         errors = err;
     }
-    if (isLoading) {
+
+    if (isLoading && loadingElement) {
         loadingElement.style.display = 'none';
     }
+
     return {
-        errors: errors,
+        errors,
         result: Response_Result
     };
 }
@@ -80,12 +98,12 @@ export async function downloadFile(Url, hooks, isLoading = false) {
     catch (err) {
         console.log('downloadFile', err);
 
-        if (err?.code == "ERR_NETWORK") {
+        if (err?.code === "ERR_NETWORK") {
             setTimeout(() => { window.location.href = '/login'; }, 100);
         }
-        else if (err.response?.status == 401 && err.response?.statusText == "Unauthorized") {
-            setTimeout(() => { window.location.href = '/login'; }, 100);
-        }
+        //else if (err.response?.status == 401 && err.response?.statusText == "Unauthorized") {
+        //  //  setTimeout(() => { window.location.href = '/login'; }, 100);
+        //}
         console.error('Error downloading the file:', err);
         errors = err;
     }

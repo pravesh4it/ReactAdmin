@@ -31,7 +31,7 @@ import {
 } from "../../api/invoice";
 import { GetSurvey } from "../../api/survey";
 import html2pdf from "html2pdf.js";
-import logo from "../../assets/images/FullLogo_NoBuffer.png";
+import logo from "../../assets/images/Logo-transparent.png";
 import ESOMAR from "../../assets/images/ESOMAR.PNG";
 import footerLinkedInImg from "../../assets/images/linkedin.png";
 import footerFacebookImg from "../../assets/images/facebook.png";

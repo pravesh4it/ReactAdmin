@@ -1,5 +1,6 @@
 // src/api/Country.js
 import axios from "axios";
+import { axiosCall } from "../Services/APIAXIOS";
 
 const API = process.env.REACT_APP_API_URL?.replace(/\/+$/, "") ?? "";
 
@@ -25,6 +26,18 @@ export async function updateCountry(id, payload) {
 }
 
 export async function deleteCountry(id) {
-  const res = await axios.delete(`${API}/Country/${id}`);
-  return res.status === 204 || res.status === 200;
+ try {
+        let URL = `${process.env.REACT_APP_API_URL}/country/`+id;
+        console.log(URL);
+        debugger
+        let headers = {};
+        let result = await axiosCall(URL,'delete', headers, {}, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
 }
+

@@ -139,16 +139,21 @@ const LoginForm = () => {
             />
 
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mt: 1 }}>
-  <FormControlLabel
-    control={<Checkbox defaultChecked sx={{ color: "#1976d2", p: 0, pr: 1 }} />}
-    label="Keep me signed in"
-    sx={{ m: 0 }}
-  />
-  <Link href="#" variant="body2" color="primary">
-    Forgot Password?
-  </Link>
-</Box>
+              <FormControlLabel
+                control={<Checkbox defaultChecked sx={{ color: "#1976d2", p: 0, pr: 1 }} />}
+                label="Keep me signed in"
+                sx={{ m: 0 }}
+              />
 
+              <Link
+                type="button"
+                variant="body2"
+                color="primary"
+                onClick={() => navigate("/forgot-password")}
+              >
+                Forgot Password?
+              </Link>
+            </Box>
             {errorMessage && (
               <Typography color="error" variant="body2">
                 {errorMessage}

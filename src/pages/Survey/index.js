@@ -95,6 +95,10 @@ const Surveys = () => {
         setRowData(refreshedData.result.data);
         setDeleteDialogOpen(false);
       }
+      else{
+        showSnackbar(response.errors.message, "error");
+        setDeleteDialogOpen(false);
+      }
     } catch (error) {
       console.error(error);
       showSnackbar("Failed to delete survey", "error");
@@ -163,13 +167,19 @@ const handleStatusSave = async () => {
     { headerName: "Client", field: "client", flex: 1 },
     { headerName: "Country", field: "country", flex: 1 },
     { headerName: "Language", field: "language", flex: 1, hide: true},
-    { headerName: "Quota", field: "surveyQuota", flex: 1 },
-    { headerName: "Completes", field: "currentComplete", flex: 1 },
-    { headerName: "Drop Outs", field: "dropOuts", flex: 1 },
+   
+    { headerName: "Completes", field: "currentComplete", flex: 1, hide: true },
+    
     { headerName: "Est IR/Cr IR", field: "ir", flex: 1 },
     { headerName: "Est LOI/Cr LOI", field: "loi", flex: 1 },
-    { headerName: "Last Completed", field: "lastCompleted", flex: 1 },
+    { headerName: "Drop Outs (%)", field: "dropOuts", flex: 1 },
+    { headerName: "Quota", field: "surveyQuota", flex: 1 },
+    { headerName: "Statistic", field: "statics", flex: 1 },
     { headerName: "CPI", field: "cpi", flex: 1 },
+    { headerName: "Last Completed", field: "lastCompleted", flex: 1 },
+    { headerName: "Clones", field: "cloneCount", flex: 0.5 },
+    { headerName: "Vendors", field: "vendorsCount", flex: 0.5 },
+    
     {
       headerName: "Launched Date",
       field: "launchedDate",
@@ -177,8 +187,8 @@ const handleStatusSave = async () => {
       valueFormatter: (params) => dayjs(params.value).format("DD MMM, YYYY"),
       hide: true
     },
-    { headerName: "Vendors", field: "vendorsCount", flex: 0.5 },
-    { headerName: "Clones", field: "cloneCount", flex: 0.5 },
+    
+    
     {
       headerName: "Status",
       field: "status",
@@ -192,7 +202,7 @@ const handleStatusSave = async () => {
         </Button>
       ),
     },
-    { headerName: "Statics", field: "statics", flex: 1 },
+    
     {
       headerName: "Actions",
       field: "actions",

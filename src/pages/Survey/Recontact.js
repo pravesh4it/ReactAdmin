@@ -145,15 +145,6 @@ const RecontactSurvey = () => {
             <form onSubmit={handleSubmit(onSubmit)} encType="multipart/form-data">
               <Grid container spacing={2}>
 
-                {/* Description */}
-                <Grid item xs={12}>
-                  <Controller
-                    name="description"
-                    control={control}
-                    render={({ field }) => <TextField {...field} label="Description" fullWidth />}
-                  />
-                </Grid>
-
                 {/* Survey Dropdown */}
                 <Grid item xs={4}>
                   <Controller

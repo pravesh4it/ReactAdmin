@@ -84,9 +84,15 @@ const Partners = () => {
 
     const handleConfirmDelete = async () => {
         try {
-            await DeletePartner(selectedClient.id);
+            const response = await DeletePartner(selectedClient.id);
+            if(response.errors==null)
+              { 
             setRowData(rowData.filter((item) => item.id !== selectedClient.id));
             showSnackbar("Client deleted successfully", "success");
+              }
+              else{
+                showSnackbar(response.errors.message, "error");
+              }
         } catch (error) {
             console.error(error);
             showSnackbar("Failed to delete client", "error");

@@ -19,19 +19,42 @@ const menuItems = [
   { label: "Users", path: "/users", icon: <FaUser /> },
   { label: "Recontact", path: "/survey/recontact", icon: <TbReportSearch /> },
   { label: "My Account", path: "/account", icon: <IoIosSettings /> },
-  { label: "Manage Multiselects", path: "/multiselects", icon: <IoIosSettings /> },
-  { label: "Manage Country Languages", path: "/country-languages", icon: <IoIosSettings /> },
-  { label: "Manage Countries", path: "/countries", icon: <IoIosSettings /> }
+
+  { 
+    label: "Manage Multiselects",
+    path: "/multiselects",
+    icon: <IoIosSettings />,
+    roles: ["SuperAdmin"]
+  },
+  { 
+    label: "Manage Country Languages",
+    path: "/country-languages",
+    icon: <IoIosSettings />,
+    roles: ["SuperAdmin"]
+  },
+  { 
+    label: "Manage Countries",
+    path: "/countries",
+    icon: <IoIosSettings />,
+    roles: ["SuperAdmin"]
+  }
 ];
 
 const Sidebar = () => {
   const location = useLocation();
+  const role = localStorage.getItem("role");
+
+  const filteredMenu = menuItems.filter(item => {
+    if (!item.roles) return true; 
+    return item.roles.includes(role);
+  });
 
   return (
     <div className="sidebar">
       <ul>
-        {menuItems.map((item, index) => {
+        {filteredMenu.map((item, index) => {
           const isActive = location.pathname.startsWith(item.path);
+
           return (
             <li key={index}>
               <Link to={item.path}>

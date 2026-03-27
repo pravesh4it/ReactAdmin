@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "../../assets/images/IconOnly_Transparent_NoBuffer.png";
 import Button from "@mui/material/Button";
+import logo1 from "../../assets/images/Logo-transparent.png";
 import {
   MdMenuOpen,
   MdOutlineMenu,
@@ -57,10 +58,10 @@ const Header = () => {
             </div>
 
             <Link to="/dashboard" className="d-flex align-items-center logo">
-              <img src={logo} alt="logo" />
+              <img src={logo1} alt="logo" />
             </Link>
             <div className="ms-2 d-none d-md-block">
-              <h2 className="mb-0 ml-2" style={{ color: "#fff" }}>PDR</h2>
+              <h2 className="mb-0 ml-2" style={{ color: "#fff" }}></h2>
             </div>
           </div>
 

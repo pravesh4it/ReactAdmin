@@ -265,11 +265,14 @@ const handleCloseAnswerModal = () => {
       valueGetter: "node.rowIndex + 1",
       flex: 0.5,
       minWidth: 80,
+      hide:true
     },
     { headerName: "ID", field: "id", hide: true, flex: 1 },
+    { headerName: "Survey Id", field: "internalId", flex: 1 },
     { headerName: "Respondent Id", field: "respondentId", flex: 1 },
-    { headerName: "Internal Id", field: "internalId", flex: 1 },
+    { headerName: "Partner Name", field: "partnerName", flex: 1 },
     { headerName: "Survey Name", field: "surveyName", flex: 0.5 },
+    
     { headerName: "Survey Id", field: "surveyId", hide:true},
     {
       headerName: "Created Date",
@@ -289,10 +292,10 @@ const handleCloseAnswerModal = () => {
     { headerName: "LOI(In Minutes)", field: "loi", flex: 0.5 },
     // STATUS: show plain text only (no button)
     { headerName: "Status", field: "status", flex: 1 },
-    { headerName: "Partner Name", field: "partnerName", flex: 1 },
+    
     { headerName: "IP Address", field: "respondentIP", flex: 1 },
     {
-      headerName: "Answer",
+      headerName: "Pre-screener data",
       field: "answers",
       flex: 1.5,
       autoHeight: true,

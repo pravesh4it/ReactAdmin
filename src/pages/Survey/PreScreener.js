@@ -1,296 +1,342 @@
-import { useEffect, useRef, useState } from "react";
-import { styled, emphasize } from "@mui/material/styles";
-import Breadcrumbs from "@mui/material/Breadcrumbs";
-import Chip from "@mui/material/Chip";
-import HomeIcon from "@mui/icons-material/Home";
-import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import Snackbar from "@mui/material/Snackbar";
-import Alert from "@mui/material/Alert";
-import "ag-grid-community/styles/ag-grid.css";
-import "ag-grid-community/styles/ag-theme-quartz.css";
-import { useNavigate, useLocation, useParams } from "react-router-dom";
-import { AddSurveyResponse, CreateQuiz, CreateSurvey, DeleteSurveyPreScreening, GetOptionsSurvey, GetSurvey, GetSurveyPreScreening } from "../../api/survey";
-import { Button, Checkbox, FormControl, FormControlLabel, FormHelperText, Grid, InputLabel, MenuItem, Select, TextField, Typography } from "@mui/material";
+import { useEffect, useState, useRef } from "react";
+import {
+  Alert,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Container,
+  Divider,
+  FormControl,
+  FormHelperText,
+  Grid,
+  InputLabel,
+  MenuItem,
+  Paper,
+  Select,
+  Snackbar,
+  TextField,
+  Typography
+} from "@mui/material";
+import { useNavigate, useParams } from "react-router-dom";
 import { Controller, useForm } from "react-hook-form";
-
+import {
+  CreateQuiz,
+  DeleteSurveyPreScreening,
+  GetOptionsSurvey,
+  GetSurvey,
+  GetSurveyPreScreening,
+  UpdateSurveyPreScreening
+} from "../../api/survey";
+import { Padding } from "@mui/icons-material";
 
 const PreScreener = () => {
-    const { control, handleSubmit, reset, formState: { errors } } = useForm({
-        defaultValues: {
-            title: "",
-            question: "",
-            quiztype: "",
-            options: "" // New field
-          },
-      });
-    const navigate = useNavigate();
-    const [snackbarOpen, setSnackbarOpen] = useState(false);
-    const [snackbarMessage, setSnackbarMessage] = useState("");
-    const [snackbarSeverity, setSnackbarSeverity] = useState("success");
-    const [surveyId, setSurveyId] = useState("x");
-    const [survey, setSurvey] = useState({});
-    const { sid } = useParams(); // Get Survey ID from URL
-    const [rowData, setRowData] = useState([]);
-    const [options, setOptions] = useState({
-        quiztype:[]
-      });
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                setSurveyId(sid);
-                const survey = await GetSurvey(sid);
-                setSurvey(survey.result.data);
-                const response = await GetOptionsSurvey();
-                            setOptions({
-                                quiztype: response.result.data.quiztype
-                              
-                            });
-                
-                const questions = await GetSurveyPreScreening(sid);
-                setRowData(questions.result.data);
-                console.log(rowData);
-                
-                const createdById = localStorage.getItem("userid");
-                if (!createdById) {
-                    showSnackbar("User ID not found in local storage", "error");
-                    return;
-                }
-            } catch (error) {
-                console.error("Error in fetchData:", error);
-                showSnackbar("An unexpected error occurred", "error");
-            }
-        };
-        fetchData();
-    }, []); // Trigger only on URL query changes
+  const { control, handleSubmit, reset, formState: { errors } } = useForm({
+    defaultValues: { question: "", quiztype: "", options: "" }
+  });
 
+  const navigate = useNavigate();
+  const { sid } = useParams();
+  const formRef = useRef(null);
 
-    const handleSnackbarClose = () => {
-        setSnackbarOpen(false);
+  const [survey, setSurvey] = useState({});
+  const [rowData, setRowData] = useState([]);
+  const [options, setOptions] = useState({ quiztype: [] });
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+
+  const [snackbar, setSnackbar] = useState({
+    open: false,
+    message: "",
+    severity: "success"
+  });
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    const surveyRes = await GetSurvey(sid);
+    setSurvey(surveyRes.result.data);
+
+    const optionRes = await GetOptionsSurvey();
+    setOptions({ quiztype: optionRes.result.data.quiztype });
+
+    refreshQuestions();
+  };
+
+  const refreshQuestions = async () => {
+    const res = await GetSurveyPreScreening(sid);
+    setRowData(res.result.data);
+  };
+
+  const showSnackbar = (message, severity) =>
+    setSnackbar({ open: true, message, severity });
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this question?")) return;
+
+    const res = await DeleteSurveyPreScreening(id);
+    if (!res.errors) {
+      showSnackbar("Deleted successfully", "success");
+      refreshQuestions();
+    }
+  };
+
+  const handleEdit = (item) => {
+    setIsEditMode(true);
+    setEditingId(item.id);
+
+    reset({
+      quiztype: item.questionType,
+      question: item.question,
+      options: item.option1
+    });
+
+    // Smooth scroll to form
+    setTimeout(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+  };
+
+  const handleCancel = () => {
+    setIsEditMode(false);
+    setEditingId(null);
+    reset();
+    clearForm();
+  };
+  const clearForm = () => {
+    reset({
+        quiztype: "",
+        question: "",
+        options: ""
+    });
+
+    setIsEditMode(false);
+    setEditingId(null);
+ };
+
+  const onSubmit = async (data) => {
+    const formattedOptions = data.options
+      .split("\n")
+      .map(o => o.trim())
+      .filter(Boolean)
+      .join("\n");
+
+    const payload = {
+      id: editingId,
+      surveyId: sid,
+      questionType: data.quiztype,
+      question: data.question,
+      option1: formattedOptions,
+      addedBy: localStorage.getItem("userid")
     };
 
-    const showSnackbar = (message, severity) => {
-        setSnackbarMessage(message);
-        setSnackbarSeverity(severity);
-        setSnackbarOpen(true);
-    };
-    const handleDeleteQuestion = async (questionId) => {
-    if (!window.confirm("Are you sure you want to delete this question?")) {
-        return;
+    const res = isEditMode
+      ? await UpdateSurveyPreScreening(payload)
+      : await CreateQuiz(payload);
+
+    if (!res.errors) {
+      showSnackbar(
+        isEditMode ? "Updated successfully" : "Added successfully",
+        "success"
+      );
+      refreshQuestions();
+      handleCancel();
     }
+  };
 
-    try {
-        const response = await DeleteSurveyPreScreening(questionId);
+  return (
+    
+        <Container
+                maxWidth={false}
+                sx={{ mt: 4, mb: 6, pt: "80px" }}
+                >
+      {/* HEADER */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+        <Box>
+          <Typography variant="h5" fontWeight={600}>
+            Pre-Screener Setup
+          </Typography>
+          <Typography color="text.secondary">
+            {survey?.surveyName} — {survey?.surveyTitle}
+          </Typography>
+        </Box>
 
-        if (response.errors == null) {
-            showSnackbar("Question deleted successfully", "success");
+        <Button
+          variant="outlined"
+          onClick={() => navigate(`/survey/details/${sid}`)}
+        >
+          Back
+        </Button>
+      </Box>
 
-            // Refresh list
-            const questions = await GetSurveyPreScreening(sid);
-            setRowData(questions.result.data);
-        } else {
-            showSnackbar("Failed to delete question", "error");
-        }
-    } catch (error) {
-        console.error("Delete error:", error);
-        showSnackbar("An unexpected error occurred", "error");
-    }
-};
+      {/* FORM */}
+      <Paper
+        ref={formRef}
+        elevation={isEditMode ? 6 : 3}
+        sx={{
+          p: 4,
+          borderRadius: 1,
+          border: isEditMode ? "2px solid #1976d2" : "none",
+          transition: "all 0.3s ease"
+        }}
+      >
+        <Typography variant="h6" mb={2}>
+          {isEditMode ? "Edit Question" : "Add New Question"}
+        </Typography>
 
-    const onSubmit = async (data) => {
-            try {
-              debugger;
-              console.log("Form Data:", data);
-              const createdById = localStorage.getItem("userid");
-                    // Sanitize options: trim each line and join with newline
-              const formattedOptions = data.options
-                    .split("\n")
-                    .map(opt => opt.trim())
-                    .filter(Boolean)
-                    .join("\n");
+        {isEditMode && (
+          <Alert severity="info" sx={{ mb: 3 }}>
+            You are editing this question. Update and save changes.
+          </Alert>
+        )}
 
-              const json_data1 ={
-                    "surveyId": surveyId,
-                    "questionType": data.quiztype,
-                    "question": data.question,
-                    "option1": formattedOptions,
-                    "addedBy": createdById
-                  }
-                  
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <Grid container spacing={3}>
 
-                const response = await CreateQuiz(json_data1);
-                console.log(response);
-          
-              if (response.errors == null) {
-                // Show success message
-                showSnackbar("Record added successfully", "success");
-                const questions = await GetSurveyPreScreening(sid);
-                setRowData(questions.result.data);
-                console.log(rowData);
-                // Reset the form to default values
-                reset();
-              } else {
-                // Show error message
-                showSnackbar("Failed to save record", "error");
-              }
-            } catch (error) {
-              console.error("Error submitting quiz:", error);
-              showSnackbar("An unexpected error occurred", "error");
-            }
-          };
-          
-
-    return (
-        <>
-            <div className="right-content w-100">
-            <div className="card shadow border-0 w-100 flex-row p-4">
-            <div style={{ display: "flex", alignItems: "flex-start" }}>
-            <Button
-                variant="text"
-                onClick={() => navigate("/survey/details/" + surveyId)}
-                sx={{ p: 2, pr: 2 }}
-                style={{ border: "1px solid #ccc", backgroundColor: "#f1f1f1", color: "#0c2a66ff", fontWeight: "bold" }}
-            >
-                ⬅️ Back
-            </Button>
-            <div style={{ paddingLeft: "12px", paddingTop: "4px" }}>
-                <h5 className="mb-0 text-muted">#{survey.surveyName}</h5>
-                <p className="mb-0" style={{ color: "#ccc" }}>{survey.surveyTitle}</p>
-            </div>
-        </div>
-                
-            </div>
-
-            <div className="card shadow border-0 p-3">
-                <form onSubmit={handleSubmit(onSubmit)}>
-                    <Typography variant="h5" gutterBottom>
-                    
-                    </Typography>
-                    <Grid container spacing={2}>
-                        {/* Title */}
-                        {/* Country Dropdown */}
-                        <Grid item xs={3}>
-                        <Controller
-                            name="quiztype"
-                            control={control}
-                            rules={{ required: "quiztype is required" }}
-                            render={({ field }) => (
-                            <FormControl fullWidth error={!!errors.quiztype}>
-                                <InputLabel>Question Type</InputLabel>
-                                <Select
-                                {...field}
-                                label="Question Type"
-                                value={field.value || ""}
-                                onChange={(e) => field.onChange(e.target.value)}
-                                >
-                                {options?.quiztype?.map((quiztype) => (
-                                    <MenuItem key={quiztype.id} value={quiztype.id}>
-                                    {quiztype.name}
-                                    </MenuItem>
-                                ))}
-                                </Select>
-                                {errors.country && (
-                                <FormHelperText>{errors.quiztype.message}</FormHelperText>
-                                )}
-                            </FormControl>
-                            )}
-                        />
-                        </Grid>
-
-                        <Grid item xs={6}>
-                            <Controller
-                                name="question"
-                                control={control}
-                                render={({ field }) => <TextField {...field} label="Question" fullWidth />}
-                            />
-                        </Grid>
-
-                        
-                        {/* Options */}
-                        <Grid item xs={3}>
-                            <Controller
-                                name="options"
-                                control={control}
-                                rules={{ required: "Options are required" }}
-                                render={({ field }) => (
-                                <TextField
-                                    {...field}
-                                    label="Options (one per line)"
-                                    multiline
-                                    rows={4}
-                                    fullWidth
-                                    placeholder="Option 1\nOption 2\nOption 3"
-                                    error={!!errors.options}
-                                    helperText={errors.options?.message}
-                                />
-                                )}
-                            />
-                            </Grid>
-
-
-                    </Grid>
-
-    {/* Submit Button */}
-    <Button variant="contained" color="primary" type="submit" sx={{ mt: 2 }}>
-        Add
-    </Button>
-                </form>
-
-            </div>
-            <div className="card shadow border-0 p-3">
-            <h5>Question / Answer</h5>
-<Grid container spacing={2}>
-    {rowData.length === 0 ? (
-        <Grid item xs={12}>
-            <Typography>No questions added yet.</Typography>
-        </Grid>
-    ) : (
-        rowData.map((item, index) => (
-            <Grid item xs={12} key={item.id || index}>
-                <div style={{ border: "1px solid #ddd", borderRadius: 8, padding: 16 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                        Question Type: {options.quiztype.find(q => q.id === item.questionType)?.name || item.questionType}
-                    </Typography>
-                    <Typography variant="subtitle1" fontWeight="bold">
-                        Q{index + 1}: {item.question}
-                    </Typography>
-                    <Typography sx={{ mt: 1 }}>
-                        Options:
-                        <ul style={{ margin: "8px 0", listStyleType: "none", paddingLeft: 0 }}>
-                            {item.option1?.split("\n").map((opt, i) => (
-                                <li key={i}>{opt}</li>
-                            ))}
-                        </ul>
-                    </Typography>
-                    <Button
-                        variant="outlined"
-                        color="error"
-                        size="small"
-                        onClick={() => handleDeleteQuestion(item.id)}
-                    >
-                        Delete
-                    </Button>
-
-                </div>
+            <Grid item xs={12} md={3}>
+              <Controller
+                name="quiztype"
+                control={control}
+                rules={{ required: "Required" }}
+                render={({ field }) => (
+                  <FormControl fullWidth error={!!errors.quiztype}>
+                    <InputLabel>Question Type</InputLabel>
+                    <Select {...field} label="Question Type">
+                      {options.quiztype.map(q => (
+                        <MenuItem key={q.id} value={q.id}>
+                          {q.name}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <FormHelperText>
+                      {errors.quiztype?.message}
+                    </FormHelperText>
+                  </FormControl>
+                )}
+              />
             </Grid>
-        ))
-    )}
-</Grid>
 
+            <Grid item xs={12} md={5}>
+              <Controller
+                name="question"
+                control={control}
+                rules={{ required: "Required" }}
+                render={({ field }) => (
+                  <TextField {...field} label="Question" fullWidth />
+                )}
+              />
+            </Grid>
 
-            </div>
-        </div>
-            <Snackbar
-                open={snackbarOpen}
-                autoHideDuration={6000}
-                onClose={handleSnackbarClose}
-                anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            <Grid item xs={12} md={4}>
+              <Controller
+                name="options"
+                control={control}
+                rules={{ required: "Required" }}
+                render={({ field }) => (
+                  <TextField
+                    {...field}
+                    label="Options (one per line)"
+                    multiline
+                    rows={4}
+                    fullWidth
+                  />
+                )}
+              />
+            </Grid>
+
+          </Grid>
+
+          <Box mt={3}>
+            <Button variant="contained" type="submit">
+              {isEditMode ? "Update Question" : "Add Question"}
+            </Button>
+
+            {isEditMode && (
+              <Button sx={{ ml: 2 }} variant="outlined" onClick={handleCancel}>
+                Cancel
+              </Button>
+            )}
+          </Box>
+        </form>
+      </Paper>
+
+      {/* QUESTIONS */}
+      <Box mt={5}>
+        <Typography variant="h6" mb={2}>
+          Questions
+        </Typography>
+
+        {rowData.length === 0 ? (
+          <Typography color="text.secondary">
+            No questions added yet.
+          </Typography>
+        ) : (
+          rowData.map((item, index) => (
+            <Card
+              key={item.id}
+              sx={{
+                mb: 2,
+                borderRadius: 1,
+                border:
+                  editingId === item.id
+                    ? "2px solid #1976d2"
+                    : "1px solid #eee",
+                backgroundColor:
+                  editingId === item.id ? "#f4f8ff" : "white",
+                transition: "all 0.3s ease"
+              }}
             >
-                <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} variant="filled">
-                    {snackbarMessage}
-                </Alert>
-            </Snackbar>
-        </>
-    );
+              <CardContent>
+                <Typography fontWeight={600}>
+                  Q{index + 1}. {item.question}
+                </Typography>
+
+                <Divider sx={{ my: 1 }} />
+
+                {item.option1?.split("\n").map((opt, i) => (
+                  <Typography key={i} variant="body2" style={{lineHeight: 1.8}}>
+                    • {opt}
+                  </Typography>
+                ))}
+
+                <Box mt={2}>
+                 <Button
+  variant="outlined"
+  size="small"
+  sx={{ mr: 1 }}
+  onClick={() => handleEdit(item)}
+>
+  Edit
+</Button>
+
+<Button
+  variant="outlined"
+  color="error"
+  size="small"
+  onClick={() => handleDelete(item.id)}
+>
+  Delete
+</Button>
+                </Box>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </Box>
+
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Container>
+  );
 };
 
 export default PreScreener;

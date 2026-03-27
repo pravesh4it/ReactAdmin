@@ -120,9 +120,13 @@ const ManageUsers = () => {
 
   const handleConfirmDelete = async () => {
     try {
-      await DeleteUser(selectedUser.id);
-      await loadUsers(); // ✅ reload list
-      showSnackbar("User deleted successfully", "success");
+      const response = await DeleteUser(selectedUser.id);
+      if (response.errors == null) {
+        await loadUsers(); // ✅ reload list
+        showSnackbar("User deleted successfully", "success");
+      } else {
+        showSnackbar(response.errors.message, "error");
+      }
     } catch (error) {
       console.error(error);
       showSnackbar("Failed to delete user", "error");
