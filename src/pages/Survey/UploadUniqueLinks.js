@@ -92,8 +92,8 @@ const UploadUniqueLinks = () => {
 
   const handleDownloadSample = () => {
     const link = document.createElement("a");
-    link.href = "/sample.csv"; // replace with actual path
-    link.download = "sample.csv";
+    link.href = "/UniqueSample.csv"; // replace with actual path
+    link.download = "UniqueSample.csv";
     link.click();
   };
 
@@ -122,7 +122,7 @@ const UploadUniqueLinks = () => {
             </Button>
             <div style={{ paddingLeft: "12px", paddingTop: "4px" }}>
                 <h5 className="mb-0 text-muted">#{survey.surveyName}</h5>
-                <p className="mb-0" style={{ color: "#ccc" }}>{survey.surveyTitle}</p>
+                <p className="mb-0" style={{ color: "#000" }}>{survey.surveyTitle}</p>
             </div>
         </div>
                 

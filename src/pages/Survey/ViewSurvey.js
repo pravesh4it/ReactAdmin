@@ -107,6 +107,7 @@ const ViewSurvey = () => {
     const [newPartnerRateNote, setNewPartnerRateNote] = useState("");
     const [partnerRateData, setPartnerRateData] = useState(null); // { activeRate, history }
     const [status, setStatus] = useState(null);
+    const [IssuperAdmin, setIsSuperAdmin] = useState(false);
 
 
     useEffect(() => {
@@ -115,6 +116,10 @@ const ViewSurvey = () => {
     const load = async () => {
       try {
         setLoading(true);
+        // Check if user is superadmin
+        const role = localStorage.getItem("role");
+        setIsSuperAdmin(role === "SuperAdmin");
+        console.log("User role:", IssuperAdmin);
 
         const [surveyResp, partnersResp, partnerOpts, optsResp] =
           await Promise.all([
@@ -145,6 +150,8 @@ const ViewSurvey = () => {
             quotaFullLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/quotafull/?uid=xxxx`,
             //defaultVendorURL: survey.result.data.link
         });
+
+        
         
       } catch (e) {
         console.error(e);
@@ -166,14 +173,29 @@ const ViewSurvey = () => {
     const handleSnackbarClose = () => {
         setSnackbarOpen(false);
     };
-    const filteredData = useMemo(() => 
-        modifiedData.filter((row) =>
-            Object.values(row).some(val =>
-                val && val.toString().toLowerCase().includes(searchText.toLowerCase())
-            )
-        ), 
-        [modifiedData, searchText]
+    const filteredData = useMemo(() => {
+    const filtered = modifiedData.filter((row) =>
+        Object.values(row).some(
+            (val) =>
+                val &&
+                val.toString().toLowerCase().includes(searchText.toLowerCase())
+        )
     );
+
+    // Always keep Pro Dynamic Research first
+    return filtered.sort((a, b) => {
+        const aIsProDynamic =
+            a.partnerName?.toLowerCase() === "pro dynamic research";
+        const bIsProDynamic =
+            b.partnerName?.toLowerCase() === "pro dynamic research";
+
+        if (aIsProDynamic && !bIsProDynamic) return -1;
+        if (!aIsProDynamic && bIsProDynamic) return 1;
+
+        // Keep remaining order unchanged
+        return 0;
+    });
+}, [modifiedData, searchText]);
 
         const handleCopy = async (text) => {
         try {
@@ -567,6 +589,28 @@ const ViewSurvey = () => {
         }
     };
 
+    const handleCopyAllLinks = () => {
+    const allLinks = `
+            Success Page:
+            ${surveyLink.successLink || ""}
+
+            Disqualification Page:
+            ${surveyLink.disqualificationLink || ""}
+
+            Quota Full Page:
+            ${surveyLink.quotaFullLink || ""}
+
+            Security Fail Page:
+            ${surveyLink.securityFailLink || ""}
+
+            ${surveyLink?.defaultVendorURL ? `Default Vendor URL:
+            ${surveyLink.defaultVendorURL}` : ""}
+            `.trim();
+
+            navigator.clipboard.writeText(allLinks);
+            showSnackbar("All project links copied!", "success");
+            };
+
     const formatRange = (r) => {
         if (!r) return "-";
         const s = r.startDate ? dayjs(r.startDate).format("YYYY-MM-DD") : "-";
@@ -580,7 +624,8 @@ const ViewSurvey = () => {
         return found ? found.name : idOrName;
     };
 
-    const columnDefs = [
+    const columnDefs = useMemo(() => {
+        const baseColumns = [
             { headerName: 'ID', field: 'Id', flex: 1, hide: true },
             { headerName: 'Link', field: 'link', flex: 1, hide: true },
             { headerName: 'partnerId', field: 'partnerId', flex: 1, hide: true },
@@ -620,7 +665,63 @@ const ViewSurvey = () => {
              {headerName: 'Statistics', field: 'statics', flex: 1 },
             { headerName: 'Last Complete', field: 'lastCompleted', flex: 1 },
            
-            { headerName: 'Link', field: 'link2', flex: 4 },
+            {
+    headerName: 'Link',
+    field: 'link2',
+    flex: 4,
+    cellRenderer: (params) => {
+        if (!params.value) return "";
+
+        const handleCopy = (e) => {
+            e.stopPropagation();
+            navigator.clipboard.writeText(params.value);
+            showSnackbar("Vendor link copied!", "success");
+        };
+
+        return (
+            <div
+                style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    width: "100%",
+                }}
+            >
+                {/* Copy Icon Left Side */}
+                <IconButton
+                    onClick={handleCopy}
+                    size="small"
+                    title="Copy Link"
+                >
+                    <ContentCopyIcon fontSize="small" />
+                </IconButton>
+
+                {/* Clickable Link */}
+                <a
+                    href={params.value}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    style={{
+                        color: "#1976d2",
+                        textDecoration: "none",
+                        cursor: "pointer",
+                        wordBreak: "break-all",
+                        flex: 1,
+                    }}
+                    onMouseOver={(e) =>
+                        (e.target.style.textDecoration = "underline")
+                    }
+                    onMouseOut={(e) =>
+                        (e.target.style.textDecoration = "none")
+                    }
+                >
+                    {params.value}
+                </a>
+            </div>
+        );
+    },
+},
             {
                 headerName: 'Actions',
                 field: 'actions',
@@ -647,6 +748,15 @@ const ViewSurvey = () => {
             },
         ];
 
+        // Add margin and profit columns only for superadmin
+        //if (IssuperAdmin) {
+        //    baseColumns.splice(5, 0, { headerName: 'Margin', field: 'margin', flex: 1 });
+        //    baseColumns.splice(6, 0, { headerName: 'Profit', field: 'profit', flex: 1 });
+        //}
+
+        return baseColumns;
+    }, [IssuperAdmin, survey]);
+
     return (
         <>
         <div className="right-content w-100">
@@ -665,7 +775,7 @@ const ViewSurvey = () => {
             </Button>
             <div style={{ paddingLeft: "12px", paddingTop: "4px" }}>
                 <h5 className="mb-0 text-muted">#{survey.surveyName}</h5>
-                <p className="mb-0" style={{ color: "#ccc" }}>{survey.surveyTitle}</p>
+                <p className="mb-0" style={{ color: "#000" }}>{survey.surveyTitle}</p>
             </div>
         </div>
 
@@ -718,7 +828,9 @@ const ViewSurvey = () => {
                                 </Typography>
                                
                                   <Box display="flex" gap={1}>
-                                   
+                                   <Typography style={{ color: "#000", paddingTop: "7px" }}>
+                                       <b>Remaining Days:</b> {survey.remainingDays != null ? survey.remainingDays : "-"  }
+                                    </Typography>
                                         <Button variant="text" onClick={() => setProjectLinksOpen(true)}>
                                         Project Links
                                         </Button>
@@ -731,8 +843,8 @@ const ViewSurvey = () => {
                             <thead>
                                 <tr style={{ background: "#f9f9f9" }}>
                                     <th>Client</th>
-                                    <th>Margin</th>
-                                    <th>Profit</th>
+                                    {IssuperAdmin && <th>Margin</th>}
+                                    {IssuperAdmin && <th>Profit</th>}
                                     <th>Est. IR/ Curr. IR</th>
                                     <th>Drops</th>
                                     <th>Est. LOI/ Curr. LOI</th>
@@ -748,8 +860,8 @@ const ViewSurvey = () => {
                             <tbody>
                                 <tr>
                                     <td>{survey.clientName}</td>
-                                    <td>{survey.marginPercentage}%</td>
-                                    <td>{survey.totalProfit}</td>
+                                    {IssuperAdmin && <td>{survey.marginPercentage}%</td>}
+                                    {IssuperAdmin && <td>{survey.totalProfit}</td>}
                                     <td>{survey.ir} %</td>
                                     <td>{survey.dropsPercentage}</td>
                                     <td>{survey.loi}</td>
@@ -1018,48 +1130,133 @@ const ViewSurvey = () => {
       overflowY: "auto",
     }}
   >
+    {/* Header */}
     <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
       <Typography variant="h6">Project Links</Typography>
-      <Button onClick={() => setProjectLinksOpen(false)} sx={{ minWidth: "auto" }}>✖</Button>
+
+      <Box display="flex" alignItems="center" gap={1}>
+        {/* Common Copy Button */}
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<ContentCopyIcon />}
+          onClick={handleCopyAllLinks}
+        >
+          Copy All
+        </Button>
+
+        {/* Close */}
+        <Button
+          onClick={() => setProjectLinksOpen(false)}
+          sx={{ minWidth: "auto" }}
+        >
+          ✖
+        </Button>
+      </Box>
     </Box>
 
     <Box display="grid" gap={2}>
+      {/* Success Page */}
       <Box>
-        <Typography variant="subtitle2" gutterBottom>Success Page</Typography>
+        <Typography variant="subtitle2" gutterBottom>
+          Success Page
+        </Typography>
         <Box display="flex" gap={1}>
-          <TextField fullWidth size="small" value={surveyLink.successLink} InputProps={{ readOnly: true }} />
-          <IconButton onClick={() => handleCopy(surveyLink.successLink)} title="Copy">
+          <TextField
+            fullWidth
+            size="small"
+            value={surveyLink.successLink}
+            InputProps={{ readOnly: true }}
+          />
+          <IconButton
+            onClick={() => handleCopy(surveyLink.successLink)}
+            title="Copy"
+          >
             <ContentCopyIcon fontSize="small" />
           </IconButton>
         </Box>
       </Box>
 
+      {/* Disqualification Page */}
       <Box>
-        <Typography variant="subtitle2" gutterBottom>Disqualification Page</Typography>
+        <Typography variant="subtitle2" gutterBottom>
+          Disqualification Page
+        </Typography>
         <Box display="flex" gap={1}>
-          <TextField fullWidth size="small" value={surveyLink.disqualificationLink} InputProps={{ readOnly: true }} />
-          <IconButton onClick={() => handleCopy(surveyLink.disqualificationLink)} title="Copy">
+          <TextField
+            fullWidth
+            size="small"
+            value={surveyLink.disqualificationLink}
+            InputProps={{ readOnly: true }}
+          />
+          <IconButton
+            onClick={() => handleCopy(surveyLink.disqualificationLink)}
+            title="Copy"
+          >
             <ContentCopyIcon fontSize="small" />
           </IconButton>
         </Box>
       </Box>
 
+      {/* Quota Full Page */}
       <Box>
-        <Typography variant="subtitle2" gutterBottom>Quota Full Page</Typography>
+        <Typography variant="subtitle2" gutterBottom>
+          Quota Full Page
+        </Typography>
         <Box display="flex" gap={1}>
-          <TextField fullWidth size="small" value={surveyLink.quotaFullLink} InputProps={{ readOnly: true }} />
-          <IconButton onClick={() => handleCopy(surveyLink.quotaFullLink)} title="Copy">
+          <TextField
+            fullWidth
+            size="small"
+            value={surveyLink.quotaFullLink}
+            InputProps={{ readOnly: true }}
+          />
+          <IconButton
+            onClick={() => handleCopy(surveyLink.quotaFullLink)}
+            title="Copy"
+          >
             <ContentCopyIcon fontSize="small" />
           </IconButton>
         </Box>
       </Box>
 
+      {/* Security Fail Page */}
+      <Box>
+        <Typography variant="subtitle2" gutterBottom>
+          Security Fail Page
+        </Typography>
+        <Box display="flex" gap={1}>
+          <TextField
+            fullWidth
+            size="small"
+            value={surveyLink.securityFailLink}
+            InputProps={{ readOnly: true }}
+          />
+          <IconButton
+            onClick={() => handleCopy(surveyLink.securityFailLink)}
+            title="Copy"
+          >
+            <ContentCopyIcon fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
+
+      {/* Default Vendor URL */}
       {surveyLink?.defaultVendorURL ? (
         <Box>
-          <Typography variant="subtitle2" gutterBottom>Default Vendor URL</Typography>
+          <Typography variant="subtitle2" gutterBottom>
+            Default Vendor URL
+          </Typography>
           <Box display="flex" gap={1}>
-            <TextField fullWidth size="small" value={surveyLink.defaultVendorURL} InputProps={{ readOnly: true }} />
-            <IconButton onClick={() => handleCopy(surveyLink.defaultVendorURL)} title="Copy">
+            <TextField
+              fullWidth
+              size="small"
+              value={surveyLink.defaultVendorURL}
+              InputProps={{ readOnly: true }}
+            />
+            <IconButton
+              onClick={() => handleCopy(surveyLink.defaultVendorURL)}
+              title="Copy"
+            >
               <ContentCopyIcon fontSize="small" />
             </IconButton>
           </Box>
@@ -1067,8 +1264,14 @@ const ViewSurvey = () => {
       ) : null}
     </Box>
 
+    {/* Footer */}
     <Box mt={3} display="flex" justifyContent="flex-end">
-      <Button variant="contained" onClick={() => setProjectLinksOpen(false)}>Close</Button>
+      <Button
+        variant="contained"
+        onClick={() => setProjectLinksOpen(false)}
+      >
+        Close
+      </Button>
     </Box>
   </Box>
 </Modal>

@@ -16,7 +16,7 @@ const menuItems = [
   { label: "Clients", path: "/clients", icon: <FaUsers /> },
   { label: "Partners", path: "/partners", icon: <FaProductHunt /> },
   { label: "Surveys", path: "/surveys", icon: <RiSurveyLine /> },
-  { label: "Users", path: "/users", icon: <FaUser /> },
+  { label: "Users", path: "/users", icon: <FaUser /> , roles: ["SuperAdmin"]},
   { label: "Recontact", path: "/survey/recontact", icon: <TbReportSearch /> },
   { label: "My Account", path: "/account", icon: <IoIosSettings /> },
 

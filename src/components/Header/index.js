@@ -107,7 +107,7 @@ const Header = () => {
                   </span>
                   <div className="userInfo res-hide ms-2">
                     <h4 className="mb-0" style={{ fontSize: 14, lineHeight: 1.2 }}>{email}</h4>
-                    <p className="mb-0" style={{ fontSize: 12, opacity: 0.85 }}>{role}</p>
+                    <p className="mb-0" style={{ fontSize: 12, opacity: 0.85 }}></p>
                   </div>
                 </div>
 

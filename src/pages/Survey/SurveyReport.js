@@ -392,7 +392,7 @@ const filteredData = useMemo(() => {
             </Button>
             <div style={{ paddingLeft: "12px", paddingTop: "4px" }}>
               <h5 className="mb-0 text-muted">#{survey.surveyName}</h5>
-              <p className="mb-0" style={{ color: "#ccc" }}>{survey.surveyTitle}</p>
+              <p className="mb-0" style={{ color: "#000" }}>{survey.surveyTitle}</p>
             </div>
           </div>
         </div>

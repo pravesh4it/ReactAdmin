@@ -401,7 +401,7 @@ debugger;
               </Button>
               <div style={{ paddingLeft: "12px", paddingTop: "4px" }}>
                 <h5 className="mb-0 text-muted">#{surveyname}</h5>
-                <p className="mb-0" style={{ color: "#ccc" }}>
+                <p className="mb-0" style={{ color: "#000" }}>
                   {surveytitle}
                 </p>
               </div>

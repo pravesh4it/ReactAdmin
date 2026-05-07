@@ -31,6 +31,7 @@ import { DeleteSurvey, GetOptionsSurvey, GetSurveys, UpdateSurveyStatus } from "
 import { FormControl, InputLabel } from "@mui/material";
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { Sort } from "@mui/icons-material";
+import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 const Surveys = () => {
   const [rowData, setRowData] = useState([]);
@@ -45,6 +46,8 @@ const Surveys = () => {
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [statusRow, setStatusRow] = useState(null);            // the row being edited
   const [statusSelectionId, setStatusSelectionId] = useState(""); // selected status id
+  // ADD STATE
+  const [surveyFilter, setSurveyFilter] = useState("all"); // all | my
 
   const navigate = useNavigate();
 
@@ -77,7 +80,9 @@ const Surveys = () => {
 
   const handleAddSurvey = () => navigate("/survey/add");
 
-  const handleSurveyClick = (id) => navigate(`/survey/details/${id}`);
+  const handleSurveyClick = (id) => {
+  window.open(`/survey/details/${id}`, "_blank");
+};
 
   const handleEditSurvey = (id) => navigate(`/survey/edit/${id}`);
 
@@ -152,16 +157,30 @@ const handleStatusSave = async () => {
       hide: true
     },
     {
-      headerName: "Survey Id",
-      field: "name",
-      flex: 2,
-      Sortable: false,
-      cellRenderer: (params) => (
-        <Button color="primary" onClick={() => handleSurveyClick(params.data.id)}>
-          {params.value}
-        </Button>
-      ),
-    },
+  headerName: "Survey Id",
+  field: "name",
+  flex: 2,
+  cellRenderer: (params) => {
+    return (
+      <a
+        href={`/survey/details/${params.data.id}`}
+        target="_self"
+        rel="noopener noreferrer"
+        onClick={(e) => e.stopPropagation()} // prevent row click conflict
+        style={{
+          color: "#1976d2",
+          textDecoration: "none",
+          cursor: "pointer",
+          fontWeight: 500,
+        }}
+        onMouseOver={(e) => (e.target.style.textDecoration = "underline")}
+        onMouseOut={(e) => (e.target.style.textDecoration = "none")}
+      >
+        {params.value}
+      </a>
+    );
+  },
+},
     { headerName: "Id", field: "id", flex: 1, hide: true },
     { headerName: "Title", field: "title", flex: 2, Sortable: false },
     { headerName: "Client", field: "client", flex: 1 },
@@ -223,15 +242,39 @@ const handleStatusSave = async () => {
     },
   ];
 
-  const filteredData = useMemo(
-    () =>
-      rowData.filter((row) =>
-        Object.values(row).some((val) =>
-          val?.toString().toLowerCase().includes(searchText.toLowerCase())
-        )
-      ),
-    [rowData, searchText]
-  );
+  // UPDATE filteredData
+const filteredData = useMemo(() => {
+  const loggedInUserId = localStorage.getItem("userid");
+
+  return rowData
+    .filter((row) => {
+      // Search filter
+      const matchesSearch = Object.values(row).some((val) =>
+        val?.toString().toLowerCase().includes(searchText.toLowerCase())
+      );
+
+      if (!matchesSearch) return false;
+
+      // All Surveys
+      if (surveyFilter === "all") return true;
+
+      // My Surveys
+      if (surveyFilter === "my") {
+        if (!row.surveyUsers) return false;
+
+        // SurveyUsers assumed comma-separated user ids
+        const userIds = row.surveyUsers
+          .split(",")
+          .map((x) => x.trim().toLowerCase());
+
+        return userIds.includes(loggedInUserId?.toLowerCase());
+      }
+
+      return true;
+    });
+}, [rowData, searchText, surveyFilter]);
+
+
 
   return (
     <>
@@ -241,17 +284,43 @@ const handleStatusSave = async () => {
         </div>
 
         <div className="card shadow border-0 p-3">
-          <div style={{ display: "flex", justifyContent: "flex-end", paddingBottom: 8 }}>
-            <TextField
-              variant="outlined"
-              placeholder="Search..."
-              value={searchText}
-              size="small"
-              onChange={(e) => setSearchText(e.target.value)}
-              style={{ marginRight: 16 }}
-            />
-            
-          </div>
+         
+<div
+  style={{
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingBottom: 8,
+    gap: 12,
+    flexWrap: "wrap",
+  }}
+>
+  {/* Left Side Buttons */}
+  <div style={{ display: "flex", gap: 8 }}>
+    <Button
+      variant={surveyFilter === "all" ? "contained" : "outlined"}
+      onClick={() => setSurveyFilter("all")}
+    >
+      All Surveys
+    </Button>
+
+    <Button
+      variant={surveyFilter === "my" ? "contained" : "outlined"}
+      onClick={() => setSurveyFilter("my")}
+    >
+      My Surveys
+    </Button>
+  </div>
+
+  {/* Right Side Search */}
+  <TextField
+    variant="outlined"
+    placeholder="Search..."
+    value={searchText}
+    size="small"
+    onChange={(e) => setSearchText(e.target.value)}
+  />
+</div>
 
           <div className="ag-theme-quartz">
             <AgGridReact
