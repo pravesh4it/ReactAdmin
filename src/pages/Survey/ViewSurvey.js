@@ -68,6 +68,7 @@ const ViewSurvey = () => {
         successLink: "",
         disqualificationLink: "",
         quotaFullLink: "",
+        securityFailLink: "",
         defaultVendorURL:""
     });
     const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -148,6 +149,7 @@ const ViewSurvey = () => {
             successLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/success/?uid=xxxx`,
             disqualificationLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/disqualify/?uid=xxxx`,
             quotaFullLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/quotafull/?uid=xxxx`,
+            securityFailLink: `${process.env.REACT_APP_BASEURL}survey/survey-response/securityfail/?uid=xxxx`,
             //defaultVendorURL: survey.result.data.link
         });
 
@@ -662,9 +664,9 @@ const ViewSurvey = () => {
             { headerName: 'Est. IR/ Curr. IR', field: 'ir', flex: 1 },
             { headerName: 'Est. LOI/ Curr. LOI', field: 'loi', flex: 1 },
             { headerName: 'Drop out (%)', field: 'drops', flex: 1 },
-             {headerName: 'Statistics', field: 'statics', flex: 1 },
+            {headerName: 'Statistics', field: 'statics', flex: 1 },
             { headerName: 'Last Complete', field: 'lastCompleted', flex: 1 },
-           
+            { headerName: 'Today Hits', field: 'clicks', flex: 1 },
             {
     headerName: 'Link',
     field: 'link2',
@@ -853,7 +855,7 @@ const ViewSurvey = () => {
                                     <th>Quota</th>
                                     <th>Created On</th>
                                     <th>Closed On</th>
-                                    <th>Clicks</th>
+                                    <th>Today Hits</th>
                                     <th>Statics </th>
                                 </tr>
                             </thead>

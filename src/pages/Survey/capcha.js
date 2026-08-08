@@ -12,7 +12,7 @@ const CaptchaScreen = ({ onSuccess }) => {
         </Typography>
 
         <ReCAPTCHA
-          sitekey="6Lc4CIIsAAAAACRxb_ux9_5iJfdrFprLTNZFhL21"
+          sitekey={process.env.REACT_APP_GOOGLE_CAPTCHA_SITEKEY}
           onChange={onSuccess}
         />
 

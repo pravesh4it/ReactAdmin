@@ -62,6 +62,7 @@ const SurveyReport = () => {
   const location = useLocation();
   const { sid } = useParams();
   const gridRef = useRef();
+  const storedRole = localStorage.getItem("role");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -449,13 +450,14 @@ const filteredData = useMemo(() => {
             <Button variant="outlined" onClick={handleExportCSV}>
               Export CSV
             </Button>
-            <Button
+           {storedRole === "SuperAdmin" && ( <Button
               variant="contained"
               onClick={handleOpenBulkStatusModal}
               disabled={selectedRows.length === 0} // enabled when selection exists
             >
               Change Status (Selected)
             </Button>
+           )}
           </div>
         </div>
 
@@ -485,7 +487,7 @@ const filteredData = useMemo(() => {
             rowSelection="multiple"
             suppressRowClickSelection={true}
             onSelectionChanged={onSelectionChanged}         // sync selection to state
-            onRowDoubleClicked={(params) => handleOpenStatusModal(params.data)} // double-click for single row status change
+            //onRowDoubleClicked={(params) => handleOpenStatusModal(params.data)} // double-click for single row status change
           />
         </div>
       </div>
@@ -501,10 +503,12 @@ const filteredData = useMemo(() => {
           >
             <MenuItem value="" disabled>Select status</MenuItem>
             <MenuItem value="incomplete">Incomplete</MenuItem>
-            <MenuItem value="Success">Success</MenuItem>
-            <MenuItem value="Quotafull">Quotafull</MenuItem>
-            <MenuItem value="Disqualified">Disqualified</MenuItem>
-            <MenuItem value="Securityfail">Securityfail</MenuItem>
+            <MenuItem value="success">Success</MenuItem>
+            <MenuItem value="quotafull">Quotafull</MenuItem>
+            <MenuItem value="disqualify">Disqualify</MenuItem>
+            <MenuItem value="securityfail">Security Fail</MenuItem>
+            <MenuItem value="rejected">Rejected</MenuItem>
+            <MenuItem value="success_validation_issue">Success validation Issue</MenuItem>
           </Select>
         </DialogContent>
         <DialogActions>

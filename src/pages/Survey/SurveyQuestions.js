@@ -18,6 +18,7 @@ import {
 import { useLocation } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
 
+
 import {
   AddSurveyResponse,
   GetIsSurveyPreScreening,
@@ -265,7 +266,7 @@ const SurveyQuestions = () => {
             Verify you are human
           </Typography>
           <ReCAPTCHA
-            sitekey="6Lc4CIIsAAAAACRxb_ux9_5iJfdrFprLTNZFhL21"
+            sitekey={process.env.REACT_APP_GOOGLE_CAPTCHA_SITEKEY}
             onChange={handleCaptcha}
           />
         </Card>

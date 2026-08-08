@@ -31,13 +31,13 @@ export async function AddRecontact(formData){
     }
 }
 
-export async function GetSurveys(){
+export async function GetSurveys(data){
     try {
         let URL = `${process.env.REACT_APP_API_URL}/survey/survey-list`;
         console.log(URL);
         debugger
         let headers = {};
-        let result = await axiosCall(URL,'get', headers, {}, false);
+        let result = await axiosCall(URL,'post', headers, data, false);
         console.log(result);
         return result;
     }
@@ -539,3 +539,79 @@ export async function DeleteSurveyPreScreening(id){
         return err;
     }
 }
+export async function GetSurveyList(){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/survey-prescreening-questions/?id=`;
+        console.log(URL);
+        let headers = {};
+        let result = await axiosCall(URL,'get', headers, {}, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
+export async function SearchSurveyIds(data){
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/search-survey-ids/`;
+        console.log(URL);
+        let headers = {};
+        let result = await axiosCall(URL,'post', headers, data, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+}
+
+// Get PDR List
+export const GetSurveyReportList = async () => {
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/report-list/`;
+        console.log(URL);
+        let headers = {};
+        let result = await axiosCall(URL,'get', headers, {}, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+};
+
+// Generate Vendor Allocation
+export const GenerateVendorAllocation = async (payload) => {
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/generate/`;
+        console.log(URL);
+        let headers = {};
+        let result = await axiosCall(URL,'post', headers, payload, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+};
+
+// Send Vendor Allocation Email
+export const SendVendorAllocation = async (payload) => {
+    try {
+        let URL = `${process.env.REACT_APP_API_URL}/survey/send/`;
+        console.log(URL);
+        let headers = {};
+        let result = await axiosCall(URL,'post', headers, payload, false);
+        console.log(result);
+        return result;
+    }
+    catch (err){
+        console.log(err);
+        return err;
+    }
+};

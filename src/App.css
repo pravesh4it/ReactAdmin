@@ -155,7 +155,7 @@ header .logo {
   text-decoration: none;
 }
 header .logo img {
-  width: 200px;
+  width: 240px;
 }
 header .logo span {
   color: #292929;
@@ -774,7 +774,6 @@ body.dark .logoutWrapper .logoutBox {
 }
 .company-header {
   width: 100%;
-  background: linear-gradient(90deg, #0f172a, #1e293b);
   padding: 14px 24px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }

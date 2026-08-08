@@ -220,6 +220,9 @@ export default function SurveyDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <KpiCard label="Total Responses" value={overview?.totalResponses ?? 0} icon={<AssessmentIcon />} />
         </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <KpiCard label="Today's Completed" value={overview?.totalTodayResponses ?? 0} icon={<AssessmentIcon />} />
+        </Grid>
       </Grid>
 
       {/* Charts */}

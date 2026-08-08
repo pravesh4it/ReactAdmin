@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import logo from "../../assets/images/IconOnly_Transparent_NoBuffer.png";
 import Button from "@mui/material/Button";
-import logo1 from "../../assets/images/Logo-transparent.png";
+import logo1 from "../../assets/images/Logo-transparent2.png";
 import {
   MdMenuOpen,
   MdOutlineMenu,

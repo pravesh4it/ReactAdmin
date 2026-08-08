@@ -92,9 +92,11 @@ const UploadUniqueLinks = () => {
 
   const handleDownloadSample = () => {
     const link = document.createElement("a");
-    link.href = "/UniqueSample.csv"; // replace with actual path
+    link.href = `${process.env.PUBLIC_URL}/UniqueSample.csv`;
     link.download = "UniqueSample.csv";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
   };
 
   const showSnackbar = (message, severity) => {

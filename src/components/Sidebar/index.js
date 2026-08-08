@@ -24,20 +24,27 @@ const menuItems = [
     label: "Manage Multiselects",
     path: "/multiselects",
     icon: <IoIosSettings />,
-    roles: ["SuperAdmin"]
+    //roles: ["SuperAdmin"]
   },
   { 
     label: "Manage Country Languages",
     path: "/country-languages",
     icon: <IoIosSettings />,
-    roles: ["SuperAdmin"]
+    //roles: ["SuperAdmin"]
   },
   { 
     label: "Manage Countries",
     path: "/countries",
     icon: <IoIosSettings />,
-    roles: ["SuperAdmin"]
-  }
+    //roles: ["SuperAdmin"]
+  },
+  { 
+    label: "Ids Report",
+    path: "/survey/survey-ids-report",
+    icon: <IoIosSettings />,
+    //roles: ["SuperAdmin"]
+  },
+
 ];
 
 const Sidebar = () => {

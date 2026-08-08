@@ -9,7 +9,7 @@ import QuotaFullImg from "../../assets/images/quotafull.png";
 import surveyresponse from "../../assets/images/surveyresponse.png";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-quartz.css";
-import Logo from "../../assets/images/IconOnly_Transparent_NoBuffer.png";
+import Logo from "../../assets/images/Logo-transparent2.png";
 
 const SurveyResponse = () => {
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -124,11 +124,21 @@ const SurveyResponse = () => {
   return (
     <div className="survey-response-page">
       <header className="company-header">
-      <div className="header-content">
-        <img src={Logo} alt="Pro Dynamic Research" className="company-logo" />
-        <h2 className="company-name">Pro Dynamic Research</h2>
-      </div>
-    </header>
+  <div className="header-content">
+    <a
+      href="https://prodynamicresearch.com"
+      target="_blank"
+      rel="noopener noreferrer"
+    >
+      <img
+        src={Logo}
+        alt="Pro Dynamic Research"
+        className="company-logo"
+        style={{ cursor: "pointer" }}
+      />
+    </a>
+  </div>
+</header>
 
 
       <main className="response-wrapper">

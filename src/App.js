@@ -41,6 +41,7 @@ import InvoicePage from "./pages/Survey/Invoice";
 import InvoiceListForSurvey from "./pages/Survey/InvoicesList";
 import ForgotPasswordForm  from "./pages/Login/forgot-password";
 import SurveyPage from "./pages/Survey/SurveyPage";
+import SurveyIdsReport from "./pages/Survey/SurveyIdsReport";
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -154,6 +155,8 @@ function App() {
               <Route path="/countries" element={isAuthenticated() ? <CountriesAdmin /> : <Navigate to="/" />} />
               <Route path="/survey/invoice/:sid" element={isAuthenticated() ? <InvoicePage /> : <Navigate to="/" />} />
               <Route path="/survey/invoices-list/:sid" element={isAuthenticated() ? <InvoiceListForSurvey /> : <Navigate to="/" />} />
+              <Route path="/survey/survey-ids-report" element={isAuthenticated() ? <SurveyIdsReport /> : <Navigate to="/" />} />
+            
             </Route>
           </Routes>
         </LocalizationProvider>
